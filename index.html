@@ -1,0 +1,1281 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>باحث ذكي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap">
+<style>
+/* Layout: an academic slide lesson. Fixed header (title + index), one slide visible at a time, fixed footer with previous/next and progress. */
+:root{
+  --bg:#f4f6f9; --surface:#ffffff; --ink:#1a2338; --muted:#586178; --line:#d6dbe5;
+  --navy:#1f3a68; --navy-soft:#e7edf6; --gold:#9a7a2e;
+  --good:#1e6e47; --good-soft:#e3f1e9; --bad:#a3312a; --bad-soft:#f8e6e4;
+  --serif:"Amiri","Times New Roman",serif;
+  --sans:"IBM Plex Sans Arabic",Tahoma,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10151f; --surface:#172031; --ink:#e6eaf2; --muted:#9aa4b8; --line:#2a3447;
+  --navy:#93b3e6; --navy-soft:#1c2a44; --gold:#cfae5c;
+  --good:#5cc28f; --good-soft:#17301f; --bad:#f08b83; --bad-soft:#3a1d1b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151f; --surface:#172031; --ink:#e6eaf2; --muted:#9aa4b8; --line:#2a3447;
+  --navy:#93b3e6; --navy-soft:#1c2a44; --gold:#cfae5c;
+  --good:#5cc28f; --good-soft:#17301f; --bad:#f08b83; --bad-soft:#3a1d1b; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.85}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+h1,h2,h3{font-family:var(--serif);font-weight:700;line-height:1.4;text-wrap:balance;margin:0}
+p{margin:0}
+a{color:var(--navy)}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--navy);outline-offset:2px;border-radius:6px}
+.mono{font-family:var(--mono);direction:ltr;unicode-bidi:isolate}
+.cite{color:var(--muted);font-size:.92em;white-space:nowrap}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.top .in{max-width:960px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:10px}
+.brand{display:flex;flex-direction:column;line-height:1.3;min-width:0}
+.brand b{font-family:var(--serif);font-size:1.15rem;color:var(--navy)}
+.brand span{font-size:.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.idxbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:6px 14px;font-size:.9rem;flex:0 0 auto}
+
+/* toc drawer */
+.toc{position:fixed;inset:0;z-index:40;background:rgba(10,15,25,.45);display:flex;justify-content:flex-start}
+.toc .panel{width:min(360px,88vw);height:100%;overflow-y:auto;background:var(--surface);padding:calc(16px + env(safe-area-inset-top,0px)) 20px calc(20px + env(safe-area-inset-bottom,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.toc h3{font-size:1.3rem;margin-bottom:8px}
+.toc .unit{margin-top:14px;font-size:.78rem;color:var(--gold);font-weight:700;letter-spacing:.03em}
+.toc a{display:block;text-decoration:none;color:var(--ink);padding:6px 10px;border-radius:6px;font-size:.95rem}
+.toc a.cur{background:var(--navy-soft);color:var(--navy);font-weight:700}
+.toc .close{float:left;border:0;background:none;color:var(--muted);font-size:1.4rem;line-height:1}
+
+/* slides */
+main{max-width:960px;margin:0 auto;padding-block:28px 130px}
+.slide{display:none}
+.slide.on{display:block;animation:fade .35s ease}
+@keyframes fade{from{opacity:.0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.eyebrow{font-size:.82rem;color:var(--gold);font-weight:700;letter-spacing:.03em;margin-bottom:6px}
+.slide h2{font-size:clamp(1.7rem,4.4vw,2.4rem);color:var(--ink);padding-bottom:12px;border-bottom:2px solid var(--gold);margin-bottom:22px;display:inline-block}
+.slide h3{font-size:1.25rem;color:var(--navy);margin-bottom:6px}
+.lead{font-size:1.08rem;max-width:68ch}
+.stack{display:flex;flex-direction:column;gap:18px}
+.cols{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.cols3{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.panel-b{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px;min-width:0}
+.def{border-inline-start:3px solid var(--navy);background:var(--surface);padding:14px 18px;border-radius:0 8px 8px 0}
+.def b{font-family:var(--serif);font-size:1.15rem;color:var(--navy);display:block}
+.key{background:var(--navy-soft);border-radius:8px;padding:14px 18px}
+.key b{color:var(--navy)}
+ul.clean,ol.clean{margin:0;padding-inline-start:1.3em;display:flex;flex-direction:column;gap:6px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:.95rem}
+th,td{border-bottom:1px solid var(--line);padding:10px 14px;text-align:start;vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{background:var(--navy-soft);color:var(--navy);font-family:var(--serif);font-size:1.02rem}
+td code,.op{font-family:var(--mono);direction:ltr;unicode-bidi:isolate;color:var(--navy);background:var(--navy-soft);padding:1px 8px;border-radius:5px;white-space:nowrap}
+.src-note{font-size:.85rem;color:var(--muted);margin-top:4px}
+
+/* cover */
+.cover{min-height:68vh;display:flex;flex-direction:column;justify-content:center;gap:20px}
+.cover .inst{font-size:.9rem;color:var(--muted)}
+.cover h1{font-size:clamp(2.4rem,8vw,4.2rem);color:var(--navy);line-height:1.25}
+.cover .sub{font-family:var(--serif);font-size:clamp(1.2rem,3.5vw,1.6rem)}
+.cover .rule{width:120px;height:3px;background:var(--gold)}
+.cover dl{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;margin:0;font-size:1rem}
+.cover dt{color:var(--muted)}
+.cover dd{margin:0;font-weight:700}
+
+/* objectives */
+.obj{display:grid;grid-template-columns:48px 1fr;gap:14px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.obj .n{font-family:var(--serif);font-size:1.6rem;color:var(--gold);text-align:center;line-height:1.2}
+.obj .lvl{display:inline-block;font-size:.78rem;background:var(--navy-soft);color:var(--navy);border-radius:4px;padding:0 8px;margin-top:4px}
+
+/* process diagram */
+.flow{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.flow div{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--navy);border-radius:8px;padding:12px 14px;min-width:0}
+.flow b{font-family:var(--serif);font-size:1.1rem;display:block}
+.flow small{color:var(--gold);font-weight:700}
+
+/* audio */
+.audio{display:flex;flex-wrap:wrap;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px}
+.btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:8px;padding:9px 18px;background:var(--navy);color:var(--surface);font-weight:700}
+.btn.line{background:transparent;color:var(--navy);border:1.5px solid var(--navy)}
+.wave{display:flex;gap:3px;align-items:center;height:24px}
+.wave i{display:block;width:3px;height:6px;background:var(--navy);border-radius:2px;opacity:.5}
+.wave.on i{animation:wv 1s ease-in-out infinite}
+.wave i:nth-child(2){animation-delay:.12s}.wave i:nth-child(3){animation-delay:.24s}.wave i:nth-child(4){animation-delay:.36s}.wave i:nth-child(5){animation-delay:.48s}
+@keyframes wv{50%{height:22px;opacity:1}}
+details.tr summary{cursor:pointer;color:var(--navy);font-size:.92rem}
+details.tr p{margin-top:8px;color:var(--muted)}
+
+/* video */
+.player{border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#14223d;color:#eef2fa}
+.stage{position:relative;aspect-ratio:16/9;min-height:250px;max-width:100%;overflow:hidden}
+.scene{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:22px;text-align:center;opacity:0;transition:opacity .5s}
+.scene.on{opacity:1}
+.scene .t{font-family:var(--serif);font-size:clamp(1.2rem,3.8vw,2rem)}
+.scene .s{color:#a9b8d6;font-size:.9rem}
+.vbar{background:#fff;color:#1a2338;border-radius:6px;padding:8px 14px;max-width:94%;font-size:clamp(.82rem,2.6vw,1rem)}
+.strike{text-decoration:line-through;opacity:.4}
+.keepw{border-bottom:3px solid #cfae5c;font-weight:700}
+.vchips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.vchips span{font-family:var(--mono);direction:ltr;border:1px solid #6f8bc0;padding:4px 12px;border-radius:6px}
+.vgrid{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.vgrid span{width:clamp(52px,12vw,78px);padding:8px 0;border:1px solid #6f8bc0;border-radius:8px;font-family:var(--mono);font-size:clamp(1.1rem,4vw,1.7rem);line-height:1.2}
+.vgrid span small{display:block;font-family:var(--sans);font-size:.62rem;color:#a9b8d6}
+.scene.on .pop{animation:pop .5s both}
+.scene.on .pop:nth-child(2){animation-delay:.3s}.scene.on .pop:nth-child(3){animation-delay:.6s}.scene.on .pop:nth-child(4){animation-delay:.9s}.scene.on .pop:nth-child(5){animation-delay:1.2s}
+@keyframes pop{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+.vcite{font-family:"Times New Roman",serif;direction:ltr;text-align:left;background:#fff;color:#1a2338;border-radius:6px;padding:10px 14px;font-size:clamp(.72rem,2.3vw,.95rem);max-width:95%}
+.caption{background:#0e1830;padding:12px 16px;min-height:4.4em;font-size:.95rem;border-top:1px solid #2a3b60}
+.controls{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#0e1830}
+.controls button{background:#cfae5c;color:#14223d;border:0;border-radius:6px;padding:5px 14px;font-weight:700}
+.controls .prog{flex:1;height:5px;background:#2a3b60;border-radius:3px;overflow:hidden}
+.controls .prog i{display:block;height:100%;width:0;background:#cfae5c;transition:width .3s linear}
+.controls .time{font-family:var(--mono);font-size:.8rem;color:#a9b8d6}
+.controls label{display:flex;gap:6px;align-items:center;font-size:.8rem;color:#a9b8d6}
+
+/* boolean */
+.venn{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.venn figure{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;text-align:center}
+.venn svg{width:100%;max-width:200px;height:auto}
+.venn figcaption{font-size:.92rem;color:var(--muted);margin-top:6px}
+.venn figcaption b{color:var(--ink);display:block}
+
+/* builder */
+.builder input[type=text]{font:inherit;width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.togs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.tog{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:5px 12px;font-size:.9rem}
+.tog[aria-pressed="true"]{border-color:var(--navy);background:var(--navy-soft);color:var(--navy);font-weight:700}
+.qout{margin-top:12px;font-family:var(--mono);direction:ltr;text-align:left;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:8px;overflow-x:auto;white-space:nowrap}
+.explain{margin-top:10px;font-size:.93rem;color:var(--muted)}
+
+/* checks */
+.qc{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+.qc .lbl{font-size:.8rem;color:var(--gold);font-weight:700}
+.qc .q{font-weight:700;margin:4px 0 10px}
+.opts{display:grid;gap:8px}
+.opt{text-align:start;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:9px 14px}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.fb{margin-top:10px;font-size:.95rem;min-height:1.5em}
+
+/* craap */
+.craap{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.craap div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.craap .L{font-family:var(--mono);font-size:1.7rem;color:var(--navy);line-height:1}
+.craap b{font-family:var(--serif);font-size:1.12rem;display:block;margin-top:4px}
+.craap span.en{font-size:.78rem;color:var(--muted)}
+.craap p{font-size:.9rem;color:var(--muted);margin-top:4px}
+
+/* evaluation */
+.evalc{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}
+.res{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.res .url{font-family:var(--mono);direction:ltr;text-align:left;font-size:.8rem;color:var(--good);word-break:break-all}
+.res h4{margin:0;font-size:1.05rem;color:var(--navy);font-family:var(--sans)}
+.res .snip{font-size:.9rem;color:var(--muted)}
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+.checks label{display:flex;gap:6px;align-items:center;font-size:.9rem}
+.verdict{font-weight:700;font-size:.93rem;border-radius:6px;padding:8px 12px;background:var(--navy-soft)}
+
+/* apa */
+.ref-ex{direction:ltr;text-align:left;font-family:"Times New Roman",Georgia,serif;font-size:1.05rem;padding-left:2em;text-indent:-2em;overflow-wrap:anywhere}
+.apa-form{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.apa-form label{display:flex;flex-direction:column;gap:4px;font-size:.88rem;color:var(--muted)}
+.apa-form input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 12px;direction:ltr;text-align:left}
+.cite-out{margin-top:14px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:14px;direction:ltr;text-align:left;font-family:"Times New Roman",Georgia,serif;font-size:1.05rem;overflow-wrap:anywhere}
+
+/* activity + quiz */
+.task{display:grid;gap:14px}
+.task label{display:flex;flex-direction:column;gap:6px;font-weight:500}
+.task textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-height:76px;resize:vertical}
+.saved{font-size:.85rem;color:var(--good);min-height:1.4em}
+.quiz{display:grid;gap:16px}
+.qq{border:1px solid var(--line);border-radius:10px;padding:16px 18px;background:var(--surface)}
+.qq .n{font-size:.8rem;color:var(--gold);font-weight:700}
+.qq p.qt{font-weight:700;margin:4px 0 10px}
+.qq .opts label{display:flex;gap:10px;align-items:center;border:1.5px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer}
+.qq .opts label.right{border-color:var(--good);background:var(--good-soft)}
+.qq .opts label.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.qq textarea{font:inherit;width:100%;min-height:76px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--bg);color:var(--ink)}
+.model{margin-top:10px;font-size:.92rem;color:var(--muted)}
+.score{display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+.score .big{font-family:var(--serif);font-size:2.2rem;color:var(--navy);font-variant-numeric:tabular-nums}
+.refs{direction:ltr;text-align:left;display:grid;gap:12px;font-family:"Times New Roman",Georgia,serif;font-size:1.03rem}
+.refs p{padding-left:2em;text-indent:-2em;overflow-wrap:anywhere}
+.addie div{display:grid;grid-template-columns:110px 1fr;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+.addie b{font-family:var(--serif);font-size:1.15rem;color:var(--navy)}
+.addie div:last-child{border-bottom:0}
+
+/* footer nav */
+.bottom{position:fixed;inset:auto 0 0 0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.bottom .in{max-width:960px;margin:0 auto;display:flex;align-items:center;gap:12px;padding-block:10px}
+.bottom .bar{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+.bottom .bar .track{height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.bottom .bar .track i{display:block;height:100%;background:var(--gold);width:0;transition:width .3s}
+.bottom .bar span{font-size:.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.nav{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 16px;font-weight:700}
+.nav.next{background:var(--navy);color:var(--surface);border-color:var(--navy)}
+.nav:disabled{opacity:.35;cursor:default}
+
+/* illustrations */
+.fig{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;overflow-x:auto}
+.fig svg{display:block;width:100%;min-width:300px;height:auto}
+.fig figcaption{font-size:.85rem;color:var(--muted);margin-top:8px}
+.fig .t-ink{fill:var(--ink)} .fig .t-mut{fill:var(--muted)} .fig .t-nav{fill:var(--navy)} .fig .t-good{fill:var(--good)} .fig .t-gold{fill:var(--gold)}
+.fig .f-bg{fill:var(--bg)} .fig .f-soft{fill:var(--navy-soft)} .fig .f-surface{fill:var(--surface)} .fig .s-line{stroke:var(--line)} .fig .f-line{fill:var(--line)}
+.fig .f-gold{fill:var(--gold)} .fig .f-nav{fill:var(--navy)}
+.fig text{font-family:var(--sans)}
+.fig .hot{cursor:pointer}
+.fig .hot circle{fill:var(--gold)} .fig .hot text{fill:#fff;font-weight:700;font-size:15px}
+.fig .hot.sel circle{fill:var(--navy)}
+.hotinfo{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.hotinfo button{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:5px 12px;font-size:.88rem}
+.hotinfo button.sel{border-color:var(--navy);background:var(--navy-soft);color:var(--navy);font-weight:700}
+.hotout{margin-top:10px;background:var(--navy-soft);border-radius:8px;padding:12px 16px;min-height:3.4em}
+/* video cards */
+.vcards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.vcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.vthumb{position:relative;aspect-ratio:16/9;max-width:100%;background:linear-gradient(135deg,#1f3a68,#14223d);display:grid;place-items:center;color:#fff;text-decoration:none;text-align:center;padding:12px}
+.vthumb .play{width:58px;height:58px;border-radius:50%;background:#cfae5c;display:grid;place-items:center;margin:0 auto 8px}
+.vthumb .play svg{margin-inline-start:4px}
+.vthumb .lab{font-family:var(--serif);font-size:1.05rem;line-height:1.4}
+.vthumb .dur{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.65);font-family:var(--mono);font-size:.75rem;padding:1px 6px;border-radius:4px}
+.vthumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vmeta{padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.vmeta b{font-size:.98rem}
+.vmeta span{font-size:.85rem;color:var(--muted)}
+/* sort game */
+.sortg{display:grid;gap:12px}
+.sitem{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:8px}
+.sitem .u{font-family:var(--mono);direction:ltr;text-align:left;font-size:.8rem;color:var(--good);word-break:break-all}
+.sitem .d{font-size:.95rem}
+.sbtns{display:flex;flex-wrap:wrap;gap:6px}
+.sbtns button{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:4px 12px;font-size:.88rem}
+.sbtns button.right{border-color:var(--good);background:var(--good-soft);color:var(--good);font-weight:700}
+.sbtns button.wrong{border-color:var(--bad);background:var(--bad-soft);color:var(--bad)}
+.sitem .why{font-size:.88rem;color:var(--muted)}
+.tally{font-weight:700;color:var(--navy)}
+/* citation anatomy */
+.anat{direction:ltr;text-align:left;font-family:"Times New Roman",Georgia,serif;font-size:1.1rem;line-height:2.2;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;overflow-wrap:anywhere}
+.anat span{border-radius:4px;padding:2px 4px}
+.c1{background:#dbe6f7;color:#1a2338}.c2{background:#f3e3bd;color:#1a2338}.c3{background:#d9efe2;color:#1a2338}.c4{background:#f4dcd9;color:#1a2338}.c5{background:#e4dcf2;color:#1a2338}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px;font-size:.88rem}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-inline-end:6px}
+/* enrichment */
+.res-links{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.res-links a{display:flex;flex-direction:column;gap:2px;text-decoration:none;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;color:var(--ink)}
+.res-links a b{color:var(--navy)}
+.res-links a span{font-size:.86rem;color:var(--muted)}
+.res-links a small{font-size:.75rem;color:var(--gold);font-weight:700}
+.more{font-size:.88rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:10px}
+.more a{margin-inline-end:10px}
+
+@media (max-width:520px){
+  body{font-size:16px}
+  .addie div{grid-template-columns:1fr;gap:2px}
+  .checks{grid-template-columns:1fr}
+  .nav{padding:8px 12px}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<script>window.BAHETH_EMBED=true;</script>
+</head>
+<body>
+
+<div dir="rtl" lang="ar">
+
+<header class="top">
+  <div class="in gut">
+    <div class="brand"><b>باحث ذكي</b><span>مهارات البحث في الإنترنت · مصدر رقمي تعليمي</span></div>
+    <button class="idxbtn" id="openToc" type="button" aria-haspopup="dialog">الفهرس</button>
+  </div>
+</header>
+
+<div class="toc" id="toc" hidden role="dialog" aria-label="فهرس الدرس">
+  <div class="panel"><button type="button" class="close" id="closeToc" aria-label="إغلاق">×</button><h3>فهرس الدرس</h3><div id="tocList"></div></div>
+</div>
+
+<main class="gut" id="deck">
+
+<!-- 1 -->
+<section class="slide" data-unit="المقدمة" data-title="الغلاف">
+  <div class="cover">
+    <p class="inst">مقرر إنتاج المصادر الرقمية · مصدر رقمي تعليمي أكاديمي</p>
+    <h1>باحث ذكي</h1>
+    <p class="sub">مهارات البحث في الإنترنت وتقييم المصادر الرقمية وتوثيقها</p>
+    <div class="rule"></div>
+    <dl>
+      <dt>إعداد الباحث</dt><dd>عمر محمد الزهراني</dd>
+      <dt>الفئة المستهدفة</dt><dd>طلاب المرحلة الثانوية</dd>
+      <dt>نموذج التصميم</dt><dd>نموذج ADDIE للتصميم التعليمي</dd>
+      <dt>زمن التعلم</dt><dd>45 دقيقة (حصة دراسية واحدة)</dd>
+      <dt>العام الدراسي</dt><dd>1448هـ / 2026م</dd>
+    </dl>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="slide" data-unit="المقدمة" data-title="الحاجة التعليمية">
+  <p class="eyebrow">المقدمة</p>
+  <h2>الحاجة التعليمية</h2>
+  <div class="stack">
+    <p class="lead">أصبح الإنترنت المصدر الأول الذي يلجأ إليه الطلاب لإعداد البحوث والواجبات، غير أن سهولة الوصول إلى المعلومة لا تعني بالضرورة القدرة على الوصول إلى المعلومة الصحيحة أو الحكم على مصداقيتها.</p>
+    <div class="def"><b>شاهد من الدراسات</b>أجرت مجموعة التاريخ التعليمي بجامعة ستانفورد دراسة على آلاف الطلاب من المرحلة المتوسطة حتى الجامعة، وانتهت إلى أن قدرتهم على تقييم المعلومات الرقمية ضعيفة بوجه عام؛ إذ عدّ أكثر من 80% من طلاب المرحلة المتوسطة إعلانًا مموّلًا خبرًا حقيقيًا <span class="cite">(Wineburg et al., 2016)</span>.</div>
+    <h3>المشكلة التي يعالجها هذا المصدر</h3>
+    <ul class="clean">
+      <li>كتابة السؤال كاملًا في محرك البحث بدل الكلمات المفتاحية، مما يُنتج نتائج كثيرة وغير دقيقة.</li>
+      <li>الاعتماد على النتيجة الأولى دون مقارنتها بغيرها.</li>
+      <li>ضعف التمييز بين المصدر الموثوق والإعلان أو الرأي الشخصي.</li>
+      <li>نقل المعلومات دون توثيق، وما يترتب على ذلك من إخلال بالأمانة العلمية.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="slide" data-unit="المقدمة" data-title="الأهداف التعليمية">
+  <p class="eyebrow">المقدمة</p>
+  <h2>الأهداف التعليمية</h2>
+  <p class="lead" style="margin-bottom:16px">بنهاية هذا المصدر الرقمي يُتوقع من الطالب أن يكون قادرًا على أن:</p>
+  <div class="stack">
+    <div class="obj"><span class="n">١</span><div><p>يطبّق خطوات البحث المنهجي في الإنترنت باستخدام كلمات مفتاحية مناسبة ومعاملين على الأقل من معاملات البحث المتقدم.</p><span class="lvl">مستوى التطبيق</span></div></div>
+    <div class="obj"><span class="n">٢</span><div><p>يميّز بين المصدر الرقمي الموثوق وغير الموثوق باستخدام معايير اختبار CRAAP.</p><span class="lvl">مستوى التحليل</span></div></div>
+    <div class="obj"><span class="n">٣</span><div><p>يوثّق مصدرًا رقميًا توثيقًا صحيحًا وفق دليل الجمعية الأمريكية لعلم النفس APA (الإصدار السابع).</p><span class="lvl">مستوى التطبيق</span></div></div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="slide" data-unit="المقدمة" data-title="مخطط الدرس">
+  <p class="eyebrow">المقدمة</p>
+  <h2>مخطط الدرس</h2>
+  <div class="stack">
+    <p class="lead">مرحبًا بك في هذا الدرس عن مهارات البحث في الإنترنت. نعيش اليوم في عصر تتدفق فيه المعلومات بلا حدود، لكن ليست كل معلومة على الإنترنت صحيحة أو موثوقة. سنتعرف في هذا الدرس على المفاهيم الأساسية للبحث، ثم نتعلم كيف نخطط لبحثنا ونحوّل أسئلتنا إلى كلمات مفتاحية، وكيف نستخدم معاملات البحث المتقدم للوصول إلى نتائج دقيقة، ثم كيف نقيّم المصادر بمعايير علمية، وأخيرًا كيف نوثّقها وفق نظام APA. انتقل بين الشرائح بالترتيب، وأجب عن أسئلة التحقق في نهاية كل وحدة، ثم نفّذ النشاط التطبيقي والاختبار الختامي.</p>
+    <div class="flow">
+      <div><small>الوحدة الأولى</small><b>مفاهيم أساسية</b>الثقافة المعلوماتية وكيف يعمل محرك البحث</div>
+      <div><small>الوحدة الثانية</small><b>التخطيط للبحث</b>من السؤال إلى الكلمات المفتاحية</div>
+      <div><small>الوحدة الثالثة</small><b>البحث المتقدم</b>المنطق البولياني ومعاملات البحث</div>
+      <div><small>الوحدة الرابعة</small><b>تقييم المصادر</b>اختبار CRAAP وطريقة SIFT</div>
+      <div><small>الوحدة الخامسة</small><b>التوثيق</b>الأمانة العلمية ونظام APA</div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="slide" data-unit="الوحدة الأولى: مفاهيم أساسية" data-title="مفاهيم ومصطلحات">
+  <p class="eyebrow">الوحدة الأولى · مفاهيم أساسية</p>
+  <h2>مفاهيم ومصطلحات</h2>
+  <div class="stack">
+    <div class="def"><b>الثقافة المعلوماتية (Information Literacy)</b>قدرة الفرد على إدراك حاجته إلى المعلومات، وعلى تحديد مكانها، وتقييمها، واستخدامها بفاعلية <span class="cite">(American Library Association, 1989)</span>. ومهارات البحث في الإنترنت جزء أساسي منها.</div>
+    <div class="def"><b>محرك البحث (Search Engine)</b>نظام برمجي يجمع صفحات الويب وينظمها في فهرس ضخم، ثم يعرض للمستخدم النتائج الأكثر صلة بكلمات بحثه مرتبة وفق خوارزميات محددة <span class="cite">(Google, n.d.-a)</span>.</div>
+    <div class="def"><b>الكلمة المفتاحية (Keyword)</b>كلمة أو عبارة قصيرة تعبّر عن المفهوم الجوهري في سؤال البحث، ويستخدمها محرك البحث لمطابقة الصفحات ذات الصلة.</div>
+    <div class="def"><b>المصدر الموثوق (Credible Source)</b>مصدر معروف الجهة أو المؤلف، يقدّم معلومات دقيقة مدعومة بالأدلة، ويُحدَّث باستمرار، ويهدف إلى الإعلام لا إلى التسويق أو التضليل.</div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="slide" data-unit="الوحدة الأولى: مفاهيم أساسية" data-title="كيف يعمل محرك البحث؟">
+  <p class="eyebrow">الوحدة الأولى · مفاهيم أساسية</p>
+  <h2>كيف يعمل محرك البحث؟</h2>
+  <div class="stack">
+    <p class="lead">يمر عمل محرك البحث بثلاث مراحل رئيسة <span class="cite">(Google, n.d.-a)</span>:</p>
+    <div class="flow">
+      <div><small>المرحلة 1</small><b>الزحف (Crawling)</b>برامج آلية تتنقل بين صفحات الويب عبر الروابط وتكتشف الصفحات الجديدة والمحدَّثة.</div>
+      <div><small>المرحلة 2</small><b>الفهرسة (Indexing)</b>تحليل محتوى كل صفحة وتخزينه في فهرس ضخم يشبه فهرس المكتبة.</div>
+      <div><small>المرحلة 3</small><b>الترتيب (Ranking)</b>عند البحث تُستخرج الصفحات المطابقة وتُرتَّب حسب الصلة والجودة وعوامل أخرى.</div>
+    </div>
+    <div class="key"><b>ما الذي يعنيه هذا للباحث؟</b> ترتيب النتيجة في الصفحة الأولى لا يعني بالضرورة أنها الأصح علميًا؛ فالترتيب يتأثر بعوامل عدة، منها الصلة بالكلمات المكتوبة وشهرة الصفحة. ولهذا يبقى تقييم المصدر مسؤولية الباحث نفسه.</div>
+    <div class="vcards">
+      <div class="vcard" data-yt="KyCYyoGusqs">
+        <a class="vthumb" href="https://www.youtube.com/watch?v=KyCYyoGusqs" target="_blank" rel="noopener"><div><div class="play"><svg width="22" height="22" viewBox="0 0 24 24" fill="#14223d" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></div><div class="lab">How Search Works</div></div><span class="dur">≈ 3 د</span></a>
+        <div class="vmeta"><b>فيديو: كيف يعمل البحث في Google؟</b><span>شرح مات كاتس من فريق جودة البحث في Google لمراحل الزحف والفهرسة والترتيب. بالإنجليزية، ويمكن تفعيل الترجمة العربية التلقائية من إعدادات الفيديو.</span></div>
+      </div>
+    </div>
+    <p class="more">للاستزادة: <a href="https://www.google.com/search/howsearchworks/" target="_blank" rel="noopener">موقع Google «كيف يعمل البحث»</a></p>
+  </div>
+</section>
+
+<!-- 6b -->
+<section class="slide" data-unit="الوحدة الأولى: مفاهيم أساسية" data-title="اقرأ صفحة النتائج">
+  <p class="eyebrow">الوحدة الأولى · تطبيق تفاعلي</p>
+  <h2>اقرأ صفحة النتائج قبل أن تنقر</h2>
+  <div class="stack">
+    <p class="lead">تحتوي صفحة نتائج البحث على عناصر يغفل عنها كثير من الطلاب. اضغط على الأرقام في الصورة لتتعرف على كل عنصر.</p>
+    <figure class="fig" data-hot="serp">
+      <svg viewBox="0 0 600 400" role="img" aria-label="صورة توضيحية لصفحة نتائج بحث" style="direction:rtl">
+        <rect class="f-bg s-line" x="70" y="14" width="510" height="42" rx="21" stroke-width="1.5"/>
+        <text class="t-ink" x="550" y="41" font-size="16">قلة النوم التحصيل الدراسي</text>
+        <circle class="f-line" cx="98" cy="35" r="9"/><rect class="f-line" x="104" y="41" width="10" height="3" transform="rotate(45 104 41)"/>
+        <text class="t-nav" x="580" y="88" font-size="14" font-weight="700">الكل</text>
+        <text class="t-mut" x="535" y="88" font-size="14">صور</text>
+        <text class="t-mut" x="490" y="88" font-size="14">أخبار</text>
+        <text class="t-mut" x="440" y="88" font-size="14">الأدوات ▾</text>
+        <rect class="f-line" x="70" y="100" width="510" height="1"/>
+        <rect class="f-soft" x="532" y="114" width="48" height="22" rx="4"/>
+        <text class="t-nav" x="573" y="130" font-size="13" font-weight="700">ممول</text>
+        <text class="t-good" x="520" y="130" font-size="13" style="direction:ltr" text-anchor="end">www.super-brain-drink.shop</text>
+        <text class="t-nav" x="580" y="160" font-size="17" font-weight="700">مشروب يغنيك عن النوم.. اطلبه الآن بخصم 50%</text>
+        <text class="t-mut" x="580" y="184" font-size="13">ركّز أكثر ونم أقل! توصيل مجاني لجميع الطلبات…</text>
+        <text class="t-good" x="580" y="226" font-size="13">www.moh.gov.sa › الصحة العامة › النوم</text>
+        <text class="t-nav" x="580" y="254" font-size="17" font-weight="700">النوم الصحي للمراهقين - وزارة الصحة</text>
+        <text class="t-mut" x="580" y="278" font-size="13">يحتاج المراهقون إلى عدد كافٍ من ساعات النوم، وتؤثر قلته في</text>
+        <text class="t-mut" x="580" y="298" font-size="13">التركيز والذاكرة والتحصيل الدراسي…</text>
+        <text class="t-good" x="580" y="338" font-size="13">www.example-blog.net › مقالات</text>
+        <text class="t-nav" x="580" y="366" font-size="17" font-weight="700">10 أسرار لن يخبرك بها أحد عن النوم!</text>
+        <text class="t-mut" x="580" y="390" font-size="13">تجربتي الشخصية مع السهر وكيف أصبحت أنام 3 ساعات فقط…</text>
+        <g class="hot" data-k="0" tabindex="0"><circle cx="40" cy="35" r="14"/><text x="40" y="40" text-anchor="middle">1</text></g>
+        <g class="hot" data-k="1" tabindex="0"><circle cx="40" cy="84" r="14"/><text x="40" y="89" text-anchor="middle">2</text></g>
+        <g class="hot" data-k="2" tabindex="0"><circle cx="40" cy="148" r="14"/><text x="40" y="153" text-anchor="middle">3</text></g>
+        <g class="hot" data-k="3" tabindex="0"><circle cx="40" cy="226" r="14"/><text x="40" y="231" text-anchor="middle">4</text></g>
+        <g class="hot" data-k="4" tabindex="0"><circle cx="40" cy="278" r="14"/><text x="40" y="283" text-anchor="middle">5</text></g>
+        <g class="hot" data-k="5" tabindex="0"><circle cx="40" cy="366" r="14"/><text x="40" y="371" text-anchor="middle">6</text></g>
+      </svg>
+      <figcaption>صورة توضيحية مبسطة لصفحة نتائج بحث، من إعداد الباحث.</figcaption>
+      <div class="hotinfo"></div>
+      <div class="hotout">اختر رقمًا من الصورة أو من الأزرار.</div>
+    </figure>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="slide" data-unit="الوحدة الثانية: التخطيط للبحث" data-title="خطوات البحث المنهجي">
+  <p class="eyebrow">الوحدة الثانية · التخطيط للبحث</p>
+  <h2>خطوات البحث المنهجي</h2>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>الخطوة</th><th>ما يفعله الباحث</th><th>مثال</th></tr></thead>
+      <tbody>
+        <tr><td>1. تحديد سؤال البحث</td><td>صياغة سؤال محدد وواضح بدل موضوع عام</td><td>ما أثر قلة النوم على التحصيل الدراسي لدى المراهقين؟</td></tr>
+        <tr><td>2. استخراج الكلمات المفتاحية</td><td>تحديد المفاهيم الجوهرية وحذف الكلمات العامة</td><td>قلة النوم · التحصيل الدراسي · المراهقون</td></tr>
+        <tr><td>3. توسيع المصطلحات</td><td>إضافة مرادفات ومقابلات باللغة الإنجليزية</td><td>الحرمان من النوم · sleep deprivation</td></tr>
+        <tr><td>4. اختيار أداة البحث</td><td>انتقاء المحرك أو قاعدة البيانات المناسبة لنوع المعلومة</td><td>Google Scholar للدراسات العلمية</td></tr>
+        <tr><td>5. التقييم والتوثيق</td><td>فحص مصداقية المصادر وتسجيل بياناتها</td><td>تطبيق معايير CRAAP ثم التوثيق وفق APA</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="slide" data-unit="الوحدة الثانية: التخطيط للبحث" data-title="من السؤال إلى الكلمات المفتاحية">
+  <p class="eyebrow">الوحدة الثانية · التخطيط للبحث</p>
+  <h2>من السؤال إلى الكلمات المفتاحية</h2>
+  <div class="stack">
+    <p class="lead">يقرأ محرك البحث الكلمات لا المعاني، لذلك فإن الكلمات العامة مثل «ما»، و«هل»، و«أريد أن أعرف» تشتت النتائج ولا تضيف إليها. ويُعدّ تحليل السؤال إلى مفاهيمه الرئيسة أهم مهارة في التخطيط للبحث.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>المفهوم</th><th>مرادفات عربية</th><th>المقابل الإنجليزي</th></tr></thead>
+        <tbody>
+          <tr><td>قلة النوم</td><td>الحرمان من النوم، اضطراب النوم</td><td class="mono" style="text-align:left">sleep deprivation</td></tr>
+          <tr><td>التحصيل الدراسي</td><td>الأداء الأكاديمي، النتائج الدراسية</td><td class="mono" style="text-align:left">academic performance</td></tr>
+          <tr><td>المراهقون</td><td>طلاب المرحلة الثانوية، اليافعون</td><td class="mono" style="text-align:left">adolescents</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="key"><b>قاعدة عملية:</b> ابدأ بكلمتين أو ثلاث كلمات مفتاحية. إن كانت النتائج كثيرة فأضف كلمة تخصّصها، وإن كانت قليلة فاستبدل كلمة بمرادفها أو احذف كلمة.</div>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="slide" data-unit="الوحدة الثانية: التخطيط للبحث" data-title="الفيديو التعليمي">
+  <p class="eyebrow">الوحدة الثانية · التخطيط للبحث</p>
+  <h2>الفيديو التعليمي: رحلة البحث في دقيقة</h2>
+  <div class="stack">
+    <div class="player">
+      <div class="stage" aria-live="polite">
+        <div class="scene on" data-cap="يكتب كثير من الطلاب سؤالهم كاملًا في محرك البحث، فتظهر لهم نتائج كثيرة لا يجيب أغلبها عن السؤال.">
+          <p class="t">مشكلة شائعة</p>
+          <div class="vbar">أريد أن أعرف ما هو أثر قلة النوم على درجات الطلاب في المدرسة</div>
+          <p class="s">نتائج كثيرة ومشتتة</p>
+        </div>
+        <div class="scene" data-cap="الخطوة الأولى: استخراج الكلمات المفتاحية، بحذف الكلمات العامة والإبقاء على المفاهيم التي تحمل المعنى.">
+          <p class="t">١. الكلمات المفتاحية</p>
+          <div class="vbar"><span class="strike">أريد أن أعرف ما هو</span> <span class="keepw">أثر</span> <span class="keepw">قلة النوم</span> <span class="strike">على درجات الطلاب في المدرسة</span> <span class="keepw">التحصيل الدراسي</span></div>
+        </div>
+        <div class="scene" data-cap="الخطوة الثانية: توظيف معاملات البحث المتقدم؛ علامتا التنصيص للعبارة الدقيقة، وعلامة الطرح للاستبعاد، وsite لتحديد النطاق، وfiletype لنوع الملف.">
+          <p class="t">٢. معاملات البحث</p>
+          <div class="vchips"><span class="pop">"قلة النوم"</span><span class="pop">-إعلان</span><span class="pop">site:edu.sa</span><span class="pop">filetype:pdf</span></div>
+        </div>
+        <div class="scene" data-cap="الخطوة الثالثة: تقييم كل مصدر بخمسة معايير هي الحداثة والصلة والمرجعية والدقة والهدف، وتُعرف باختبار CRAAP.">
+          <p class="t">٣. تقييم المصدر</p>
+          <div class="vgrid"><span class="pop">C<small>الحداثة</small></span><span class="pop">R<small>الصلة</small></span><span class="pop">A<small>المرجعية</small></span><span class="pop">A<small>الدقة</small></span><span class="pop">P<small>الهدف</small></span></div>
+        </div>
+        <div class="scene" data-cap="الخطوة الرابعة: توثيق المصدر وفق نظام APA، حفاظًا على الأمانة العلمية وتمكينًا للقارئ من الرجوع إليه.">
+          <p class="t">٤. التوثيق</p>
+          <div class="vcite">Google. (n.d.). <i>Refine Google searches</i>. Google Search Help. https://support.google.com/websearch/answer/2466433</div>
+        </div>
+        <div class="scene" data-cap="خطّط، وابحث بدقة، وقيّم، ووثّق. هذه هي المهارات التي سنتعمق فيها في الوحدات التالية.">
+          <p class="t">خطّط · ابحث · قيّم · وثّق</p>
+          <p class="s">تابع إلى الوحدة الثالثة</p>
+        </div>
+      </div>
+      <div class="caption" id="caption">اضغط «تشغيل» لمشاهدة الفيديو مع الشرح النصي.</div>
+      <div class="controls">
+        <button type="button" id="playBtn">تشغيل</button>
+        <div class="prog" aria-hidden="true"><i id="progBar"></i></div>
+        <span class="time" id="vtime">1/6</span>
+        
+      </div>
+    </div>
+    <p class="src-note">للاستزادة: <a href="https://www.google.com/search/howsearchworks/" target="_blank" rel="noopener">موقع Google الرسمي «كيف يعمل البحث»</a> · <a href="https://www.youtube.com/results?search_query=%D8%A7%D9%84%D8%A8%D8%AD%D8%AB+%D8%A7%D9%84%D9%85%D8%AA%D9%82%D8%AF%D9%85+%D9%81%D9%8A+%D8%AC%D9%88%D8%AC%D9%84" target="_blank" rel="noopener">مقاطع شرح البحث المتقدم على YouTube</a></p>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="slide" data-unit="الوحدة الثانية: التخطيط للبحث" data-title="اختيار أداة البحث المناسبة">
+  <p class="eyebrow">الوحدة الثانية · التخطيط للبحث</p>
+  <h2>اختيار أداة البحث المناسبة</h2>
+  <div class="stack">
+    <p class="lead">تختلف أداة البحث باختلاف نوع المعلومة المطلوبة، ولا يُعدّ محرك البحث العام الخيار الأمثل في كل الحالات.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>نوع الحاجة</th><th>الأداة المقترحة</th><th>ملاحظة</th></tr></thead>
+        <tbody>
+          <tr><td>معلومة عامة أو تعريف أولي</td><td>محرك بحث عام (Google)</td><td>مدخل جيد، مع ضرورة تقييم كل نتيجة</td></tr>
+          <tr><td>دراسات وأبحاث علمية محكّمة</td><td><a href="https://scholar.google.com" target="_blank" rel="noopener">Google Scholar</a></td><td>يعرض المؤلف وجهة النشر وعدد الاستشهادات</td></tr>
+          <tr><td>إحصاءات رسمية عن المملكة</td><td><a href="https://www.stats.gov.sa" target="_blank" rel="noopener">الهيئة العامة للإحصاء</a></td><td>بيانات رسمية موثقة ومحدَّثة</td></tr>
+          <tr><td>أنظمة وتعليمات حكومية</td><td>البحث داخل النطاق <span class="op">gov.sa</span></td><td>باستخدام المعامل <span class="op">site:</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="more">للاستزادة: <a href="https://scholar.google.com" target="_blank" rel="noopener">Google Scholar</a><a href="https://www.stats.gov.sa" target="_blank" rel="noopener">الهيئة العامة للإحصاء</a></p>
+  </div>
+</section>
+
+<!-- 10b -->
+<section class="slide" data-unit="الوحدة الثانية: التخطيط للبحث" data-title="قراءة نتيجة في Google Scholar">
+  <p class="eyebrow">الوحدة الثانية · تطبيق تفاعلي</p>
+  <h2>كيف تقرأ نتيجة في Google Scholar؟</h2>
+  <div class="stack">
+    <p class="lead">تختلف نتيجة الباحث العلمي عن نتيجة المحرك العام؛ فهي تعرض بيانات تساعدك مباشرة على تقييم الدراسة وتوثيقها. اضغط على الأرقام للتعرف على كل جزء.</p>
+    <figure class="fig" data-hot="scholar">
+      <svg viewBox="0 0 600 250" role="img" aria-label="صورة توضيحية لنتيجة في Google Scholar" style="direction:ltr">
+        <text class="t-nav" x="60" y="40" font-size="16" font-weight="700">National Sleep Foundation's sleep time duration</text>
+        <text class="t-nav" x="60" y="62" font-size="16" font-weight="700">recommendations: methodology and results summary</text>
+        <text class="t-good" x="60" y="92" font-size="13">M Hirshkowitz, K Whiton, SM Albert… - Sleep Health, 2015 - Elsevier</text>
+        <text class="t-mut" x="60" y="122" font-size="13">Objective: To conduct a scientifically rigorous update to the</text>
+        <text class="t-mut" x="60" y="142" font-size="13">National Sleep Foundation's sleep duration recommendations…</text>
+        <text class="t-nav" x="60" y="178" font-size="13">☆ Save   ❝ Cite   Cited by …   Related articles   All versions</text>
+        <rect class="f-soft" x="470" y="22" width="110" height="26" rx="4"/>
+        <text class="t-nav" x="480" y="40" font-size="13" font-weight="700">[PDF] elsevier.com</text>
+        <text class="t-mut" x="60" y="222" font-size="12">Illustration of a Google Scholar result (prepared by the researcher)</text>
+        <g class="hot" data-k="0" tabindex="0"><circle cx="30" cy="50" r="14"/><text x="30" y="55" text-anchor="middle">1</text></g>
+        <g class="hot" data-k="1" tabindex="0"><circle cx="30" cy="88" r="14"/><text x="30" y="93" text-anchor="middle">2</text></g>
+        <g class="hot" data-k="2" tabindex="0"><circle cx="30" cy="132" r="14"/><text x="30" y="137" text-anchor="middle">3</text></g>
+        <g class="hot" data-k="3" tabindex="0"><circle cx="30" cy="174" r="14"/><text x="30" y="179" text-anchor="middle">4</text></g>
+        <g class="hot" data-k="4" tabindex="0"><circle cx="455" cy="35" r="14"/><text x="455" y="40" text-anchor="middle">5</text></g>
+      </svg>
+      <figcaption>صورة توضيحية مبسطة لنتيجة بحث في Google Scholar، من إعداد الباحث.</figcaption>
+      <div class="hotinfo"></div>
+      <div class="hotout">اختر رقمًا من الصورة أو من الأزرار.</div>
+    </figure>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="slide" data-unit="الوحدة الثانية: التخطيط للبحث" data-title="تحقق من فهمك (1)">
+  <p class="eyebrow">الوحدة الثانية · تقويم تكويني</p>
+  <h2>تحقق من فهمك</h2>
+  <div class="stack">
+    <div class="qc" data-quick><span class="lbl">السؤال الأول</span><p class="q">أيّ الصياغات الآتية أنسب للبحث عن أضرار السكر على الصحة؟</p>
+      <div class="opts">
+        <button type="button" class="opt">أريد أن أعرف ما هي أضرار السكر على صحة الإنسان</button>
+        <button type="button" class="opt" data-ok>أضرار السكر الصحة</button>
+        <button type="button" class="opt">السكر</button>
+      </div>
+      <p class="fb" data-yes="إجابة صحيحة. تقتصر هذه الصياغة على الكلمات المفتاحية التي تحمل المعنى، فتأتي النتائج أدق." data-no="ليست الأنسب. الصياغة الأولى مليئة بكلمات عامة، والثالثة واسعة جدًا. المطلوب الكلمات المفتاحية الجوهرية فقط."></p></div>
+    <div class="qc" data-quick><span class="lbl">السؤال الثاني</span><p class="q">تبحث عن دراسات علمية محكّمة حول أثر الألعاب الإلكترونية على التركيز. ما الأداة الأنسب؟</p>
+      <div class="opts">
+        <button type="button" class="opt">مواقع التواصل الاجتماعي</button>
+        <button type="button" class="opt" data-ok>Google Scholar</button>
+        <button type="button" class="opt">متجر التطبيقات</button>
+      </div>
+      <p class="fb" data-yes="صحيح. Google Scholar مخصص للأدبيات العلمية ويعرض بيانات النشر والاستشهادات." data-no="راجع جدول أدوات البحث: الدراسات المحكّمة مكانها محركات البحث الأكاديمية."></p></div>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="slide" data-unit="الوحدة الثالثة: البحث المتقدم" data-title="المنطق البولياني">
+  <p class="eyebrow">الوحدة الثالثة · البحث المتقدم</p>
+  <h2>المنطق البولياني في البحث</h2>
+  <div class="stack">
+    <p class="lead">يعتمد البحث المتقدم على ثلاث عمليات منطقية تُعرف بالعوامل البوليانية، نسبةً إلى عالم الرياضيات جورج بول، وتحدد العلاقة بين الكلمات المفتاحية.</p>
+    <div class="venn">
+      <figure>
+        <svg viewBox="0 0 200 120" role="img" aria-label="تقاطع دائرتين"><circle cx="78" cy="60" r="44" fill="none" stroke="currentColor" style="color:var(--muted)" stroke-width="2"/><circle cx="122" cy="60" r="44" fill="none" stroke="currentColor" style="color:var(--muted)" stroke-width="2"/><path d="M100 22a44 44 0 0 1 0 76a44 44 0 0 1 0-76z" fill="var(--navy)" opacity=".8"/></svg>
+        <figcaption><b>AND (و)</b>نتائج تحتوي الكلمتين معًا، فتقل النتائج وتزداد دقة. يفترضه Google تلقائيًا بين الكلمات.</figcaption>
+      </figure>
+      <figure>
+        <svg viewBox="0 0 200 120" role="img" aria-label="اتحاد دائرتين"><circle cx="78" cy="60" r="44" fill="var(--navy)" opacity=".8"/><circle cx="122" cy="60" r="44" fill="var(--navy)" opacity=".8"/></svg>
+        <figcaption><b>OR (أو)</b>نتائج تحتوي إحدى الكلمتين أو كلتيهما، فتزداد النتائج. مفيد مع المرادفات.</figcaption>
+      </figure>
+      <figure>
+        <svg viewBox="0 0 200 120" role="img" aria-label="دائرة مستبعد منها جزء"><circle cx="78" cy="60" r="44" fill="var(--navy)" opacity=".8"/><circle cx="122" cy="60" r="44" fill="var(--bg)" stroke="currentColor" style="color:var(--muted)" stroke-width="2"/></svg>
+        <figcaption><b>NOT (ليس)</b>نتائج تحتوي الكلمة الأولى دون الثانية. يُكتب في Google بعلامة الطرح (-).</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- 13 -->
+<section class="slide" data-unit="الوحدة الثالثة: البحث المتقدم" data-title="معاملات البحث المتقدم">
+  <p class="eyebrow">الوحدة الثالثة · البحث المتقدم</p>
+  <h2>معاملات البحث المتقدم</h2>
+  <div class="stack">
+    <p class="lead">معاملات البحث رموز تُضاف إلى جملة البحث لتوجيه المحرك نحو نتائج أدق <span class="cite">(Google, n.d.-b)</span>.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>المعامل</th><th>وظيفته</th><th>مثال تطبيقي</th></tr></thead>
+        <tbody>
+          <tr><td><code>" "</code></td><td>البحث عن العبارة بنصها وترتيبها</td><td><span class="op">"التغير المناخي"</span></td></tr>
+          <tr><td><code>-</code></td><td>استبعاد كلمة من النتائج</td><td><span class="op">جاكوار -سيارة</span></td></tr>
+          <tr><td><code>site:</code></td><td>البحث داخل موقع أو نطاق محدد</td><td><span class="op">التعليم site:gov.sa</span></td></tr>
+          <tr><td><code>filetype:</code></td><td>تحديد نوع الملف</td><td><span class="op">الطاقة المتجددة filetype:pdf</span></td></tr>
+          <tr><td><code>OR</code></td><td>البحث عن إحدى الكلمتين (يُكتب بأحرف كبيرة)</td><td><span class="op">الطاقة الشمسية OR طاقة الرياح</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="key"><b>أداة مساندة:</b> تتيح قائمة «الأدوات» أسفل مربع البحث في Google تحديد المدة الزمنية للنتائج، وهو أمر مهم عند البحث عن معلومات حديثة.</div>
+    <p class="more">للاستزادة: <a href="https://support.google.com/websearch/answer/2466433?hl=ar" target="_blank" rel="noopener">دليل Google لتحسين البحث (بالعربية)</a><a href="https://developers.google.com/search/docs/monitor-debug/search-operators?hl=ar" target="_blank" rel="noopener">عوامل البحث في Google (بالعربية)</a><a href="https://newsinitiative.withgoogle.com/resources/trainings/advanced-search-researching-with-precision/" target="_blank" rel="noopener">درس Google News Initiative: البحث المتقدم</a></p>
+  </div>
+</section>
+
+<!-- 14 -->
+<section class="slide" data-unit="الوحدة الثالثة: البحث المتقدم" data-title="مختبر البحث">
+  <p class="eyebrow">الوحدة الثالثة · تطبيق عملي</p>
+  <h2>مختبر البحث: ابنِ جملة بحث</h2>
+  <div class="panel-b builder">
+    <label for="bq" style="font-weight:700">الكلمات المفتاحية</label>
+    <input type="text" id="bq" value="قلة النوم التحصيل الدراسي" style="margin-top:6px">
+    <div class="togs" role="group" aria-label="المعاملات">
+      <button type="button" class="tog" data-op="exact" aria-pressed="false">عبارة دقيقة " "</button>
+      <button type="button" class="tog" data-op="minus" aria-pressed="false">استبعاد: -إعلان</button>
+      <button type="button" class="tog" data-op="site" aria-pressed="false">نطاق تعليمي: site:edu.sa</button>
+      <button type="button" class="tog" data-op="pdf" aria-pressed="false">ملفات PDF</button>
+    </div>
+    <div class="qout" id="bout"></div>
+    <p class="explain" id="bexp"></p>
+    <div style="margin-top:12px"><a class="btn" id="bgo" href="#" target="_blank" rel="noopener">نفّذ البحث في Google</a></div>
+  </div>
+</section>
+
+<!-- 15 -->
+<section class="slide" data-unit="الوحدة الثالثة: البحث المتقدم" data-title="تحقق من فهمك (2)">
+  <p class="eyebrow">الوحدة الثالثة · تقويم تكويني</p>
+  <h2>تحقق من فهمك</h2>
+  <div class="stack">
+    <div class="qc" data-quick><span class="lbl">السؤال الأول</span><p class="q">تريد ملفات PDF عن الأمن السيبراني من المواقع التعليمية السعودية فقط. أيّ جملة بحث تستخدم؟</p>
+      <div class="opts">
+        <button type="button" class="opt">الأمن السيبراني PDF السعودية</button>
+        <button type="button" class="opt" data-ok><span class="mono">الأمن السيبراني site:edu.sa filetype:pdf</span></button>
+        <button type="button" class="opt"><span class="mono">"الأمن السيبراني" -pdf</span></button>
+      </div>
+      <p class="fb" data-yes="إجابة صحيحة. جمعتَ بين site لتحديد النطاق وfiletype لتحديد نوع الملف." data-no="راجع جدول المعاملات: تحتاج معاملًا للنطاق (site:) وآخر لنوع الملف (filetype:)."></p></div>
+    <div class="qc" data-quick><span class="lbl">السؤال الثاني</span><p class="q">أيّ العوامل البوليانية يزيد عدد النتائج؟</p>
+      <div class="opts">
+        <button type="button" class="opt">AND</button>
+        <button type="button" class="opt" data-ok>OR</button>
+        <button type="button" class="opt">NOT</button>
+      </div>
+      <p class="fb" data-yes="صحيح. يجمع OR نتائج الكلمتين، فيوسّع البحث." data-no="راجع شكل المنطق البولياني: AND وNOT يضيّقان البحث، أما OR فيوسّعه."></p></div>
+  </div>
+</section>
+
+<!-- 16 -->
+<section class="slide" data-unit="الوحدة الرابعة: تقييم المصادر" data-title="اختبار CRAAP">
+  <p class="eyebrow">الوحدة الرابعة · تقييم المصادر</p>
+  <h2>معايير تقييم المصادر: اختبار CRAAP</h2>
+  <div class="stack">
+    <p class="lead">طوّرت سارة بليكسلي في مكتبة جامعة ولاية كاليفورنيا (تشيكو) أداة لتقييم المصادر تتكون من خمسة معايير، يشكّل الحرف الأول من أسمائها الإنجليزية كلمة CRAAP <span class="cite">(Blakeslee, 2004)</span>.</p>
+    <div class="craap">
+      <div><span class="L">C</span><b>الحداثة</b><span class="en">Currency</span><p>توقيت نشر المعلومة وتحديثها.</p></div>
+      <div><span class="L">R</span><b>الصلة</b><span class="en">Relevance</span><p>مدى ارتباط المعلومة بحاجتك البحثية.</p></div>
+      <div><span class="L">A</span><b>المرجعية</b><span class="en">Authority</span><p>مصدر المعلومة: المؤلف أو الجهة ومؤهلاتها.</p></div>
+      <div><span class="L">A</span><b>الدقة</b><span class="en">Accuracy</span><p>صحة المعلومة ودعمها بالأدلة.</p></div>
+      <div><span class="L">P</span><b>الهدف</b><span class="en">Purpose</span><p>الغاية من نشر المعلومة.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 17 -->
+<section class="slide" data-unit="الوحدة الرابعة: تقييم المصادر" data-title="أسئلة التقييم التفصيلية">
+  <p class="eyebrow">الوحدة الرابعة · تقييم المصادر</p>
+  <h2>أسئلة التقييم التفصيلية</h2>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>المعيار</th><th>أسئلة يطرحها الباحث</th><th>مؤشرات الضعف</th></tr></thead>
+      <tbody>
+        <tr><td>الحداثة</td><td>متى نُشرت المعلومة؟ هل حُدّثت؟ هل روابطها تعمل؟</td><td>غياب التاريخ، روابط معطلة</td></tr>
+        <tr><td>الصلة</td><td>هل تجيب عن سؤالي؟ هل مستواها مناسب؟ هل اطلعت على مصادر أخرى؟</td><td>معلومات عامة لا تمس السؤال</td></tr>
+        <tr><td>المرجعية</td><td>من المؤلف أو الجهة؟ ما مؤهلاته؟ ما نطاق الموقع؟</td><td>مؤلف مجهول، جهة غير معروفة</td></tr>
+        <tr><td>الدقة</td><td>هل المعلومة مدعومة بأدلة ومراجع؟ هل تؤيدها مصادر أخرى؟</td><td>غياب المراجع، أخطاء لغوية وعلمية</td></tr>
+        <tr><td>الهدف</td><td>هل الغرض الإعلام أم البيع أم الإقناع؟ هل يظهر انحياز واضح؟</td><td>إعلانات كثيرة، عناوين مثيرة ومبالغ فيها</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="more" style="margin-top:14px">للاستزادة: <a href="https://www.library.qut.edu.au/transcripts/craaptest.jsp" target="_blank" rel="noopener">شرح اختبار CRAAP من مكتبة جامعة كوينزلاند للتقنية (بالإنجليزية)</a></p>
+</section>
+
+<!-- 17b -->
+<section class="slide" data-unit="الوحدة الرابعة: تقييم المصادر" data-title="اقرأ الرابط: تشريح عنوان الموقع">
+  <p class="eyebrow">الوحدة الرابعة · تطبيق تفاعلي</p>
+  <h2>اقرأ الرابط: تشريح عنوان الموقع</h2>
+  <div class="stack">
+    <p class="lead">يكشف عنوان الموقع (URL) معلومات مهمة عن الجهة الناشرة قبل فتح الصفحة، ويُعدّ أول مؤشر على معيار المرجعية. اضغط على الأرقام.</p>
+    <figure class="fig" data-hot="url">
+      <svg viewBox="0 0 600 170" role="img" aria-label="تشريح رابط موقع إلكتروني" style="direction:ltr">
+        <rect class="f-bg s-line" x="10" y="20" width="580" height="44" rx="8" stroke-width="1.5"/>
+        <text x="22" y="49" font-size="18" style="font-family:var(--mono)" class="t-mut">https://</text>
+        <text x="108" y="49" font-size="18" style="font-family:var(--mono)" class="t-mut">www.</text>
+        <text x="151" y="49" font-size="18" style="font-family:var(--mono)" class="t-nav" font-weight="700">moh</text>
+        <text x="184" y="49" font-size="18" style="font-family:var(--mono)" class="t-good" font-weight="700">.gov.sa</text>
+        <text x="260" y="49" font-size="18" style="font-family:var(--mono)" class="t-ink">/Awareness/teens-sleep</text>
+        <rect class="f-gold" x="22" y="72" width="84" height="3"/>
+        <rect class="f-nav" x="151" y="72" width="31" height="3"/>
+        <rect class="f-gold" x="184" y="72" width="74" height="3"/>
+        <rect class="f-nav" x="260" y="72" width="236" height="3"/>
+        <g class="hot" data-k="0" tabindex="0"><circle cx="64" cy="104" r="14"/><text x="64" y="109" text-anchor="middle">1</text></g>
+        <g class="hot" data-k="1" tabindex="0"><circle cx="166" cy="104" r="14"/><text x="166" y="109" text-anchor="middle">2</text></g>
+        <g class="hot" data-k="2" tabindex="0"><circle cx="221" cy="134" r="14"/><text x="221" y="139" text-anchor="middle">3</text></g>
+        <g class="hot" data-k="3" tabindex="0"><circle cx="378" cy="104" r="14"/><text x="378" y="109" text-anchor="middle">4</text></g>
+      </svg>
+      <figcaption>صورة توضيحية لأجزاء رابط موقع إلكتروني، من إعداد الباحث.</figcaption>
+      <div class="hotinfo"></div>
+      <div class="hotout">اختر رقمًا من الصورة أو من الأزرار.</div>
+    </figure>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>النطاق</th><th>دلالته</th><th>درجة الثقة المبدئية</th></tr></thead>
+        <tbody>
+          <tr><td><code>.gov.sa</code> / <code>.gov</code></td><td>جهة حكومية رسمية</td><td>مرتفعة</td></tr>
+          <tr><td><code>.edu.sa</code> / <code>.edu</code></td><td>جامعة أو مؤسسة تعليمية</td><td>مرتفعة، مع التحقق من الكاتب</td></tr>
+          <tr><td><code>.org</code></td><td>منظمة أو جمعية، وقد تمثل وجهة نظر معينة</td><td>متوسطة، تحتاج تحققًا</td></tr>
+          <tr><td><code>.com</code> / <code>.net</code> / <code>.shop</code></td><td>جهة تجارية أو موقع عام</td><td>تحتاج تحققًا دقيقًا</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="key"><b>تنبيه:</b> النطاق مؤشر أولي لا حكم نهائي؛ فبعض المواقع التجارية تنشر محتوى علميًا رصينًا، وقد تتضمن مواقع رسمية صفحات قديمة. لذلك يُستكمل الحكم بباقي معايير CRAAP.</div>
+  </div>
+</section>
+
+<!-- 18 -->
+<section class="slide" data-unit="الوحدة الرابعة: تقييم المصادر" data-title="طريقة SIFT والقراءة الجانبية">
+  <p class="eyebrow">الوحدة الرابعة · تقييم المصادر</p>
+  <h2>طريقة SIFT للتحقق السريع</h2>
+  <div class="stack">
+    <p class="lead">اقترح مايك كولفيلد طريقة من أربع خطوات للتحقق من المعلومات الرقمية بسرعة، تقوم على مغادرة الصفحة والبحث عنها في مصادر أخرى بدل الاكتفاء بما تقوله عن نفسها <span class="cite">(Caulfield, 2019)</span>. ويُطلق على هذا الأسلوب القراءة الجانبية، وهو ما يفعله المتحققون المحترفون من الأخبار <span class="cite">(Wineburg et al., 2016)</span>.</p>
+    <div class="flow">
+      <div><small>S · Stop</small><b>توقّف</b>لا تشارك المعلومة ولا تعتمدها قبل التحقق منها.</div>
+      <div><small>I · Investigate</small><b>تحقّق من المصدر</b>ابحث عن الجهة الناشرة: من هي؟ وما سمعتها؟</div>
+      <div><small>F · Find</small><b>ابحث عن تغطية أفضل</b>هل تذكر مصادر موثوقة المعلومة نفسها؟</div>
+      <div><small>T · Trace</small><b>تتبّع الأصل</b>ارجع إلى الدراسة أو التصريح الأصلي.</div>
+    </div>
+    <h3 style="margin-top:6px">شاهد: القراءة الجانبية عمليًا</h3>
+    <div class="vcards">
+      <div class="vcard" data-ytlist="PL8dPuuaLjXtN07XYqqWSKpPrtNDiCHTzU">
+        <a class="vthumb" href="https://www.youtube.com/playlist?list=PL8dPuuaLjXtN07XYqqWSKpPrtNDiCHTzU" target="_blank" rel="noopener"><div><div class="play"><svg width="22" height="22" viewBox="0 0 24 24" fill="#14223d" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></div><div class="lab">Navigating Digital Information</div></div><span class="dur">سلسلة</span></a>
+        <div class="vmeta"><b>سلسلة Crash Course: التنقل في المعلومات الرقمية</b><span>سلسلة قصيرة أُعدّت بالتعاون مع فريق التفكير المدني الرقمي بجامعة ستانفورد، تشرح القراءة الجانبية وتقييم المصادر. بالإنجليزية مع ترجمة.</span></div>
+      </div>
+      <div class="vcard">
+        <a class="vthumb" href="https://cor.inquirygroup.org/videos/check-yourself-with-lateral-reading/" target="_blank" rel="noopener"><div><div class="play"><svg width="22" height="22" viewBox="0 0 24 24" fill="#14223d" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></div><div class="lab">Check Yourself with Lateral Reading</div></div><span class="dur">حلقة</span></a>
+        <div class="vmeta"><b>حلقة: تحقق بنفسك بالقراءة الجانبية</b><span>من موقع منهج التفكير المدني الرقمي (Civic Online Reasoning)، تعرض كيف يغادر المتحققون الصفحة ليتعرفوا على ناشرها.</span></div>
+      </div>
+    </div>
+    <p class="more">للاستزادة: <a href="https://hapgood.us/2019/06/19/sift-the-four-moves/" target="_blank" rel="noopener">المقال الأصلي لطريقة SIFT</a><a href="https://cor.inquirygroup.org/" target="_blank" rel="noopener">منهج التفكير المدني الرقمي</a></p>
+  </div>
+</section>
+
+<!-- 19 -->
+<section class="slide" data-unit="الوحدة الرابعة: تقييم المصادر" data-title="تدريب: تقييم مصدرين">
+  <p class="eyebrow">الوحدة الرابعة · تطبيق عملي</p>
+  <h2>تدريب: قيّم المصدرين</h2>
+  <div class="stack">
+    <p>ظهر المصدران الآتيان عند البحث عن «أثر قلة النوم على المراهقين». حدّد المعايير التي يحققها كل منهما.</p>
+    <div class="evalc">
+      <div class="res" data-src="a">
+        <span class="url">www.super-brain-drink.shop/blog</span>
+        <h4>اكتشاف مذهل: هذا المشروب يغنيك عن النوم ويجعلك عبقريًا!</h4>
+        <p class="snip">لا تحتاج إلى النوم بعد اليوم! اشترِ الآن بخصم 50%. (لا يُذكر كاتب ولا تاريخ ولا مراجع)</p>
+        <div class="checks"></div>
+        <div class="verdict">حدّد المعايير المتحققة</div>
+      </div>
+      <div class="res" data-src="b">
+        <span class="url">www.moh.gov.sa</span>
+        <h4>النوم الصحي للمراهقين</h4>
+        <p class="snip">صفحة توعوية من جهة صحية رسمية، محدَّثة، تبيّن ساعات النوم الموصى بها للمراهقين وأثر قلة النوم في التركيز والتعلم، مع الإحالة إلى مصادر علمية.</p>
+        <div class="checks"></div>
+        <div class="verdict">حدّد المعايير المتحققة</div>
+      </div>
+    </div>
+    <p class="src-note">مثالان تدريبيان أُعدّا لغرض هذا النشاط.</p>
+  </div>
+</section>
+
+<!-- 19b -->
+<section class="slide" data-unit="الوحدة الرابعة: تقييم المصادر" data-title="نشاط: صنّف المصادر">
+  <p class="eyebrow">الوحدة الرابعة · نشاط تفاعلي</p>
+  <h2>نشاط: صنّف المصادر</h2>
+  <div class="stack">
+    <p>ظهرت هذه النتائج عند البحث عن «أثر قلة النوم على المراهقين». صنّف كل نتيجة، ثم اقرأ التعليل. <span class="tally" id="sortTally"></span></p>
+    <div class="sortg" id="sortg"></div>
+    <p class="src-note">أمثلة تدريبية أُعدّت لغرض هذا النشاط.</p>
+  </div>
+</section>
+
+<!-- 20 -->
+<section class="slide" data-unit="الوحدة الرابعة: تقييم المصادر" data-title="تحقق من فهمك (3)">
+  <p class="eyebrow">الوحدة الرابعة · تقويم تكويني</p>
+  <h2>تحقق من فهمك</h2>
+  <div class="stack">
+    <div class="qc" data-quick><span class="lbl">السؤال الأول</span><p class="q">مقال بعنوان «هذا المشروب يجعلك عبقريًا خلال أسبوع» منشور على موقع يبيع المشروب نفسه. أيّ معيار يكشف ضعفه أولًا؟</p>
+      <div class="opts">
+        <button type="button" class="opt">الحداثة</button>
+        <button type="button" class="opt" data-ok>الهدف</button>
+        <button type="button" class="opt">الصلة</button>
+      </div>
+      <p class="fb" data-yes="صحيح. الغاية من المقال تسويقية لا علمية، وهذا مؤشر رئيس على ضعف المصدر." data-no="فكّر في سبب نشر المقال: الموقع يبيع المنتج نفسه، فالهدف تسويقي."></p></div>
+    <div class="qc" data-quick><span class="lbl">السؤال الثاني</span><p class="q">ما الخطوة التي تعني في طريقة SIFT البحث عن الجهة الناشرة خارج صفحتها؟</p>
+      <div class="opts">
+        <button type="button" class="opt">توقّف</button>
+        <button type="button" class="opt" data-ok>تحقّق من المصدر</button>
+        <button type="button" class="opt">تتبّع الأصل</button>
+      </div>
+      <p class="fb" data-yes="صحيح. هذه هي القراءة الجانبية: تعرّف على الجهة من مصادر أخرى." data-no="راجع شريحة SIFT: البحث عن الجهة الناشرة هو خطوة «تحقّق من المصدر»."></p></div>
+  </div>
+</section>
+
+<!-- 21 -->
+<section class="slide" data-unit="الوحدة الخامسة: التوثيق" data-title="الأمانة العلمية ونظام APA">
+  <p class="eyebrow">الوحدة الخامسة · التوثيق</p>
+  <h2>الأمانة العلمية ونظام APA</h2>
+  <div class="stack">
+    <div class="def"><b>التوثيق العلمي</b>الإشارة إلى المصادر التي استُمدت منها الأفكار أو المعلومات، داخل النص وفي قائمة المراجع، وفق نظام معتمد. ويحقق التوثيق ثلاث غايات: نسبة الفضل لأصحابه، وتجنّب الانتحال العلمي، وتمكين القارئ من الرجوع إلى المصدر.</div>
+    <div class="def"><b>نظام APA</b>نظام توثيق تصدره الجمعية الأمريكية لعلم النفس، ويُستخدم على نطاق واسع في العلوم التربوية والاجتماعية، وأحدث إصداراته السابع <span class="cite">(American Psychological Association, 2020)</span>.</div>
+    <div class="cols">
+      <div class="panel-b"><h3>التوثيق داخل النص</h3><p>يُذكر اسم المؤلف وسنة النشر بين قوسين: <span class="mono">(Blakeslee, 2004)</span>. وإذا لم يوجد تاريخ يُكتب <span class="mono">(Google, n.d.)</span>.</p></div>
+      <div class="panel-b"><h3>قائمة المراجع</h3><p>تُرتَّب المراجع هجائيًا بحسب اسم المؤلف، مع مسافة بادئة معلّقة لكل مرجع.</p></div>
+    </div>
+    <h3>تشريح التوثيق المرجعي</h3>
+    <div class="anat"><span class="c1">Blakeslee, S.</span> <span class="c2">(2004).</span> <span class="c3">The CRAAP test.</span> <span class="c4"><i>LOEX Quarterly, 31</i>(3),</span> <span class="c5">6–7.</span></div>
+    <div class="legend"><span><i class="c1"></i>المؤلف: اسم العائلة ثم الحرف الأول</span><span><i class="c2"></i>سنة النشر بين قوسين</span><span><i class="c3"></i>عنوان المقال</span><span><i class="c4"></i>اسم الدورية والمجلد مائلان، ثم العدد</span><span><i class="c5"></i>أرقام الصفحات</span></div>
+    <p class="more">للاستزادة: <a href="https://apastyle.apa.org/style-grammar-guidelines/references/examples" target="_blank" rel="noopener">أمثلة التوثيق من الموقع الرسمي لـ APA</a><a href="https://owl.purdue.edu/owl/research_and_citation/apa_style/apa_formatting_and_style_guide/general_format.html" target="_blank" rel="noopener">دليل Purdue OWL لنظام APA</a></p>
+  </div>
+</section>
+
+<!-- 22 -->
+<section class="slide" data-unit="الوحدة الخامسة: التوثيق" data-title="نماذج توثيق">
+  <p class="eyebrow">الوحدة الخامسة · التوثيق</p>
+  <h2>نماذج توثيق وفق APA 7</h2>
+  <div class="stack">
+    <div class="panel-b"><h3>صفحة موقع إلكتروني</h3><p style="color:var(--muted);font-size:.92rem">المؤلف أو الجهة. (السنة). <i>عنوان الصفحة</i>. اسم الموقع. الرابط</p><p class="ref-ex" style="margin-top:8px">Google. (n.d.). <i>Refine Google searches</i>. Google Search Help. https://support.google.com/websearch/answer/2466433</p></div>
+    <div class="panel-b"><h3>مقال في دورية علمية</h3><p style="color:var(--muted);font-size:.92rem">المؤلفون. (السنة). عنوان المقال. <i>اسم الدورية، المجلد</i>(العدد)، الصفحات. DOI</p><p class="ref-ex" style="margin-top:8px">Hirshkowitz, M., Whiton, K., Albert, S. M., Alessi, C., Bruni, O., DonCarlos, L., Hazen, N., Herman, J., Katz, E. S., Kheirandish-Gozal, L., Neubauer, D. N., O'Donnell, A. E., Ohayon, M., Peever, J., Rawding, R., Sachdeva, R. C., Setters, B., Vitiello, M. V., Ware, J. C., &amp; Adams Hillard, P. J. (2015). National Sleep Foundation's sleep time duration recommendations: Methodology and results summary. <i>Sleep Health, 1</i>(1), 40–43. https://doi.org/10.1016/j.sleh.2014.12.010</p></div>
+    <div class="panel-b"><h3>كتاب</h3><p style="color:var(--muted);font-size:.92rem">المؤلف. (السنة). <i>عنوان الكتاب</i>. الناشر.</p><p class="ref-ex" style="margin-top:8px">Branch, R. M. (2009). <i>Instructional design: The ADDIE approach</i>. Springer.</p></div>
+  </div>
+</section>
+
+<!-- 23 -->
+<section class="slide" data-unit="الوحدة الخامسة: التوثيق" data-title="مولّد التوثيق">
+  <p class="eyebrow">الوحدة الخامسة · تطبيق عملي</p>
+  <h2>مولّد التوثيق لصفحات الويب</h2>
+  <div class="panel-b">
+    <p style="margin-bottom:12px">املأ بيانات المصدر وسيظهر التوثيق المرجعي والتوثيق داخل النص مباشرة.</p>
+    <div class="apa-form">
+      <label>المؤلف أو الجهة<input id="aAuth" value="Google"></label>
+      <label>سنة النشر (تُترك فارغة إن لم توجد)<input id="aYear" value=""></label>
+      <label>عنوان الصفحة<input id="aTitle" value="Refine Google searches"></label>
+      <label>اسم الموقع<input id="aSite" value="Google Search Help"></label>
+      <label style="grid-column:1/-1">الرابط<input id="aUrl" value="https://support.google.com/websearch/answer/2466433"></label>
+    </div>
+    <div class="cite-out" id="aOut" aria-live="polite"></div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;align-items:center">
+      <button type="button" class="btn line" id="aCopy">نسخ التوثيق</button>
+      <span id="aIn" style="color:var(--muted);font-size:.92rem"></span>
+    </div>
+  </div>
+</section>
+
+<!-- 24 -->
+<section class="slide" data-unit="النشاط والتقويم" data-title="النشاط التطبيقي">
+  <p class="eyebrow">النشاط التطبيقي</p>
+  <h2>مهمة الباحث</h2>
+  <div class="stack">
+    <div class="key"><b>الموقف التعليمي:</b> طلب منك معلمك إعداد فقرة علمية قصيرة عن «أثر قلة النوم على التحصيل الدراسي لدى المراهقين» معتمدًا على مصادر موثوقة. نفّذ الخطوات الآتية، وتُحفظ إجاباتك على جهازك تلقائيًا.</div>
+    <form class="task" id="taskForm" autocomplete="off">
+      <label for="t1">1. حلّل السؤال إلى ثلاث كلمات مفتاحية، واكتب مرادفًا لكل منها.<textarea id="t1"></textarea></label>
+      <label for="t2">2. صغ جملتي بحث تستخدم في كل منهما معاملًا مختلفًا من معاملات البحث المتقدم.<textarea id="t2"></textarea></label>
+      <label for="t3">3. اختر مصدرين من النتائج، وقيّم كلًّا منهما بمعايير CRAAP الخمسة.<textarea id="t3"></textarea></label>
+      <label for="t4">4. حدّد المصدر الأكثر موثوقية، وعلّل اختيارك في سطرين.<textarea id="t4"></textarea></label>
+      <label for="t5">5. وثّق المصدر المختار وفق APA 7.<textarea id="t5" dir="ltr"></textarea></label>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <button type="button" class="btn" id="copyTask">نسخ الإجابات لإرسالها للمعلم</button>
+        <button type="button" class="btn line" id="clearTask">مسح الإجابات</button>
+        <span class="saved" id="savedNote"></span>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- 25 -->
+<section class="slide" data-unit="النشاط والتقويم" data-title="معايير تقييم النشاط">
+  <p class="eyebrow">النشاط التطبيقي</p>
+  <h2>بطاقة تقييم النشاط</h2>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>المعيار</th><th>متقن (2)</th><th>مقبول (1)</th><th>غير متقن (0)</th></tr></thead>
+      <tbody>
+        <tr><td>الكلمات المفتاحية</td><td>ثلاث كلمات دقيقة مع مرادفاتها</td><td>كلمات مناسبة دون مرادفات</td><td>كلمات عامة أو جمل كاملة</td></tr>
+        <tr><td>معاملات البحث</td><td>معاملان صحيحان ومناسبان</td><td>معامل واحد صحيح</td><td>استخدام خاطئ</td></tr>
+        <tr><td>تقييم المصادر</td><td>تطبيق المعايير الخمسة مع التعليل</td><td>تطبيق جزئي للمعايير</td><td>لا يوجد تقييم</td></tr>
+        <tr><td>التوثيق</td><td>توثيق صحيح ومكتمل العناصر</td><td>ينقصه عنصر واحد</td><td>توثيق غير صحيح</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="src-note" style="margin-top:10px">الدرجة الكلية: 8 درجات.</p>
+</section>
+
+<!-- 26 -->
+<section class="slide" data-unit="النشاط والتقويم" data-title="الاختبار الختامي">
+  <p class="eyebrow">التقويم الختامي</p>
+  <h2>الاختبار الختامي</h2>
+  <form class="quiz" id="quizForm">
+    <div class="qq" data-ans="b"><span class="n">السؤال 1 · الهدف الأول</span><p class="qt">أيّ جمل البحث الآتية أكثر فاعلية؟</p>
+      <div class="opts">
+        <label><input type="radio" name="q1" value="a"> ما هي فوائد المشي للإنسان؟</label>
+        <label><input type="radio" name="q1" value="b"> فوائد المشي الصحة</label>
+        <label><input type="radio" name="q1" value="c"> أريد معرفة فوائد المشي</label>
+      </div></div>
+    <div class="qq" data-ans="c"><span class="n">السؤال 2 · الهدف الأول</span><p class="qt">لاستبعاد كلمة «سيارة» من نتائج البحث عن «جاكوار» نكتب:</p>
+      <div class="opts">
+        <label><input type="radio" name="q2" value="a"> <span class="mono">جاكوار "سيارة"</span></label>
+        <label><input type="radio" name="q2" value="b"> <span class="mono">جاكوار site:سيارة</span></label>
+        <label><input type="radio" name="q2" value="c"> <span class="mono">جاكوار -سيارة</span></label>
+        <label><input type="radio" name="q2" value="d"> <span class="mono">جاكوار OR سيارة</span></label>
+      </div></div>
+    <div class="qq" data-ans="b"><span class="n">السؤال 3 · الهدف الثاني</span><p class="qt">يعني معيار «المرجعية» في اختبار CRAAP التحقق من:</p>
+      <div class="opts">
+        <label><input type="radio" name="q3" value="a"> تاريخ النشر</label>
+        <label><input type="radio" name="q3" value="b"> المؤلف أو الجهة الناشرة ومؤهلاتها</label>
+        <label><input type="radio" name="q3" value="c"> عدد الصور في الصفحة</label>
+      </div></div>
+    <div class="qq" data-ans="f"><span class="n">السؤال 4 · الهدف الثاني · صواب أو خطأ</span><p class="qt">النتيجة الأولى في محرك البحث هي دائمًا الأصح علميًا.</p>
+      <div class="opts">
+        <label><input type="radio" name="q4" value="t"> صواب</label>
+        <label><input type="radio" name="q4" value="f"> خطأ</label>
+      </div></div>
+    <div class="qq" data-ans="b"><span class="n">السؤال 5 · الهدف الثالث</span><p class="qt">عند توثيق صفحة لا تحمل تاريخ نشر وفق APA 7 يُكتب في موضع السنة:</p>
+      <div class="opts">
+        <label><input type="radio" name="q5" value="a"> سنة الاطلاع على الصفحة</label>
+        <label><input type="radio" name="q5" value="b"> <span class="mono">(n.d.)</span></label>
+        <label><input type="radio" name="q5" value="c"> لا تُوثَّق الصفحة</label>
+      </div></div>
+    <div class="qq" data-open><span class="n">السؤال 6 · سؤال مقالي قصير</span><p class="qt">وجدت معلومة صحية في حساب على مواقع التواصل الاجتماعي. اذكر خطوتين تتحقق بهما من صحتها قبل استخدامها.</p>
+      <textarea id="q6" name="q6" aria-label="إجابة السؤال السادس"></textarea>
+      <p class="model" hidden id="q6model"><b>إجابة نموذجية:</b> التحقق من هوية الناشر ومؤهلاته بالبحث عنه خارج حسابه، والبحث عن المعلومة في مصدر رسمي كموقع وزارة الصحة، أو تتبّعها إلى مصدرها الأصلي.</p></div>
+    <div class="score">
+      <button type="submit" class="btn">تصحيح الإجابات</button>
+      <button type="button" class="btn line" id="quizReset">إعادة المحاولة</button>
+      <span class="big" id="scoreNum" aria-live="polite"></span>
+      <span id="scoreMsg"></span>
+    </div>
+  </form>
+</section>
+
+<!-- 27 -->
+<section class="slide" data-unit="الخاتمة" data-title="الخلاصة">
+  <p class="eyebrow">الخاتمة</p>
+  <h2>خلاصة الدرس</h2>
+  <div class="stack">
+    <ul class="clean">
+      <li>الثقافة المعلوماتية قدرة على إدراك الحاجة إلى المعلومة، وتحديد مكانها، وتقييمها، واستخدامها بفاعلية.</li>
+      <li>يبدأ البحث الفعّال بسؤال محدد يُحلَّل إلى كلمات مفتاحية ومرادفاتها.</li>
+      <li>تضيّق معاملات البحث المتقدم والعوامل البوليانية النتائج أو توسّعها حسب الحاجة.</li>
+      <li>تُقيَّم المصادر بمعايير CRAAP الخمسة، ويُتحقق منها سريعًا بطريقة SIFT والقراءة الجانبية.</li>
+      <li>التوثيق وفق APA التزام بالأمانة العلمية، داخل النص وفي قائمة المراجع.</li>
+    </ul>
+    <div class="key"><b>للتأمل:</b> كيف ستتغير طريقتك في إعداد بحثك القادم بعد هذا الدرس؟</div>
+  </div>
+</section>
+
+<!-- 27b -->
+<section class="slide" data-unit="الخاتمة" data-title="مصادر إثرائية">
+  <p class="eyebrow">الخاتمة</p>
+  <h2>مصادر إثرائية للتعلم الذاتي</h2>
+  <div class="res-links">
+    <a href="https://support.google.com/websearch/answer/2466433?hl=ar" target="_blank" rel="noopener"><small>البحث المتقدم · عربي</small><b>تحسين عمليات البحث في Google</b><span>صفحة المساعدة الرسمية لمعاملات البحث.</span></a>
+    <a href="https://developers.google.com/search/docs/monitor-debug/search-operators?hl=ar" target="_blank" rel="noopener"><small>البحث المتقدم · عربي</small><b>عوامل البحث في Google</b><span>شرح تفصيلي لعوامل مثل site: وغيرها.</span></a>
+    <a href="https://newsinitiative.withgoogle.com/resources/trainings/advanced-search-researching-with-precision/" target="_blank" rel="noopener"><small>البحث المتقدم · درس</small><b>البحث المتقدم: البحث بدقة</b><span>درس تدريبي من مبادرة Google للأخبار.</span></a>
+    <a href="https://www.google.com/search/howsearchworks/" target="_blank" rel="noopener"><small>مفاهيم</small><b>كيف يعمل البحث</b><span>موقع Google الرسمي لشرح الزحف والفهرسة والترتيب.</span></a>
+    <a href="https://scholar.google.com" target="_blank" rel="noopener"><small>أدوات البحث</small><b>Google Scholar</b><span>محرك بحث للأدبيات العلمية المحكّمة.</span></a>
+    <a href="https://www.stats.gov.sa" target="_blank" rel="noopener"><small>أدوات البحث</small><b>الهيئة العامة للإحصاء</b><span>المصدر الرسمي للإحصاءات في المملكة.</span></a>
+    <a href="https://cor.inquirygroup.org/" target="_blank" rel="noopener"><small>تقييم المصادر</small><b>منهج التفكير المدني الرقمي</b><span>دروس وفيديوهات القراءة الجانبية.</span></a>
+    <a href="https://hapgood.us/2019/06/19/sift-the-four-moves/" target="_blank" rel="noopener"><small>تقييم المصادر</small><b>طريقة SIFT</b><span>المقال الأصلي لمايك كولفيلد.</span></a>
+    <a href="https://apastyle.apa.org/style-grammar-guidelines/references/examples" target="_blank" rel="noopener"><small>التوثيق</small><b>أمثلة APA الرسمية</b><span>نماذج توثيق لأنواع المصادر المختلفة.</span></a>
+  </div>
+</section>
+
+<!-- 28 -->
+<section class="slide" data-unit="الخاتمة" data-title="المراجع">
+  <p class="eyebrow">الخاتمة</p>
+  <h2>المراجع</h2>
+  <div class="refs">
+    <p>American Library Association. (1989). <i>Presidential Committee on Information Literacy: Final report</i>. American Library Association.</p>
+    <p>American Psychological Association. (2020). <i>Publication manual of the American Psychological Association</i> (7th ed.). https://doi.org/10.1037/0000165-000</p>
+    <p>Blakeslee, S. (2004). The CRAAP test. <i>LOEX Quarterly, 31</i>(3), 6–7.</p>
+    <p>Branch, R. M. (2009). <i>Instructional design: The ADDIE approach</i>. Springer. https://doi.org/10.1007/978-0-387-09506-6</p>
+    <p>Caulfield, M. (2019, June 19). <i>SIFT (the four moves)</i>. Hapgood. https://hapgood.us/2019/06/19/sift-the-four-moves/</p>
+    <p>Google. (n.d.-a). <i>How Search works</i>. https://www.google.com/search/howsearchworks/</p>
+    <p>Google. (n.d.-b). <i>Refine Google searches</i>. Google Search Help. https://support.google.com/websearch/answer/2466433</p>
+    <p>Hirshkowitz, M., Whiton, K., Albert, S. M., Alessi, C., Bruni, O., DonCarlos, L., Hazen, N., Herman, J., Katz, E. S., Kheirandish-Gozal, L., Neubauer, D. N., O'Donnell, A. E., Ohayon, M., Peever, J., Rawding, R., Sachdeva, R. C., Setters, B., Vitiello, M. V., Ware, J. C., &amp; Adams Hillard, P. J. (2015). National Sleep Foundation's sleep time duration recommendations: Methodology and results summary. <i>Sleep Health, 1</i>(1), 40–43. https://doi.org/10.1016/j.sleh.2014.12.010</p>
+    <p>Wineburg, S., McGrew, S., Breakstone, J., &amp; Ortega, T. (2016). <i>Evaluating information: The cornerstone of civic online reasoning</i>. Stanford Digital Repository. http://purl.stanford.edu/fv751yt5934</p>
+  </div>
+</section>
+
+<!-- 29 -->
+<section class="slide" data-unit="الخاتمة" data-title="التصميم التعليمي ADDIE">
+  <p class="eyebrow">ملحق</p>
+  <h2>توظيف نموذج ADDIE في بناء المصدر</h2>
+  <p class="lead" style="margin-bottom:12px">بُني هذا المصدر وفق المراحل الخمس لنموذج ADDIE <span class="cite">(Branch, 2009)</span>:</p>
+  <div class="addie">
+    <div><b>التحليل</b><p>تحديد الفئة المستهدفة (طلاب المرحلة الثانوية) وخصائصهم، وتشخيص الحاجة التعليمية: الاعتماد على النتيجة الأولى، وضعف تقييم المصادر، والنقل دون توثيق.</p></div>
+    <div><b>التصميم</b><p>صياغة ثلاثة أهداف سلوكية قابلة للقياس، وتنظيم المحتوى في خمس وحدات متدرجة من المفاهيم إلى التوثيق، واختيار الوسائط والأنشطة المناسبة لكل هدف.</p></div>
+    <div><b>التطوير</b><p>إنتاج الشرائح التفاعلية: النصوص العلمية الموثقة، والفيديو التعليمي ومقاطع الفيديو الإثرائية، والصور التوضيحية التفاعلية، والروابط الإثرائية، ومختبر البحث، ومولّد التوثيق، والنشاط، والاختبار.</p></div>
+    <div><b>التنفيذ</b><p>نشر المصدر برابط عام يعمل على الجوال والحاسب دون طلب إذن، وتجربته مع عينة من المتعلمين للتأكد من وضوحه وسهولة التنقل فيه.</p></div>
+    <div><b>التقويم</b><p>تقويم تكويني في نهاية كل وحدة، وتقويم ختامي بالاختبار وبطاقة تقييم النشاط، ثم تحسين المحتوى في ضوء النتائج.</p></div>
+  </div>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <div class="in gut">
+    <button class="nav" id="prev" type="button">السابق</button>
+    <div class="bar"><div class="track"><i id="track"></i></div><span id="where"></span></div>
+    <button class="nav next" id="next" type="button">التالي</button>
+  </div>
+</footer>
+</div>
+
+<script>
+(function(){
+  var $=function(s,r){return (r||document).querySelector(s)};
+  var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+
+  /* deck */
+  var slides=$$('.slide'), idx=0, track=$('#track'), where=$('#where'), prev=$('#prev'), next=$('#next');
+  function go(i,focus){
+    if(i<0||i>=slides.length) return;
+    stopAll();
+    slides[idx].classList.remove('on'); idx=i; slides[idx].classList.add('on');
+    track.style.width=((idx+1)/slides.length*100)+'%';
+    where.textContent=(idx+1)+' / '+slides.length+' · '+slides[idx].getAttribute('data-title');
+    prev.disabled=idx===0; next.disabled=idx===slides.length-1;
+    try{ history.replaceState(null,'','#s'+(idx+1)); }catch(e){}
+    window.scrollTo(0,0);
+    $$('#tocList a').forEach(function(a,k){ a.classList.toggle('cur',k===idx); });
+    if(focus){ var h=slides[idx].querySelector('h1,h2'); if(h){ h.setAttribute('tabindex','-1'); h.focus({preventScroll:true}); } }
+  }
+  prev.addEventListener('click',function(){ go(idx-1,true); });
+  next.addEventListener('click',function(){ go(idx+1,true); });
+  document.addEventListener('keydown',function(e){
+    var t=e.target.tagName; if(t==='INPUT'||t==='TEXTAREA') return;
+    if(e.key==='ArrowLeft') go(idx+1); if(e.key==='ArrowRight') go(idx-1);
+  });
+  var sx=null, sy=null;
+  document.getElementById('deck').addEventListener('touchstart',function(e){ var t=e.target.tagName; if(t==='INPUT'||t==='TEXTAREA'){sx=null;return;} sx=e.touches[0].clientX; sy=e.touches[0].clientY; },{passive:true});
+  document.getElementById('deck').addEventListener('touchend',function(e){
+    if(sx===null) return; var dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)>70 && Math.abs(dx)>Math.abs(dy)*1.5){ if(dx>0) go(idx+1); else go(idx-1); } sx=null;
+  },{passive:true});
+
+  /* toc */
+  var toc=$('#toc'), list=$('#tocList'), lastUnit='';
+  slides.forEach(function(s,i){
+    var u=s.getAttribute('data-unit');
+    if(u!==lastUnit){ var d=document.createElement('div'); d.className='unit'; d.textContent=u; list.appendChild(d); lastUnit=u; }
+    var a=document.createElement('a'); a.href='#s'+(i+1); a.textContent=(i+1)+'. '+s.getAttribute('data-title');
+    a.addEventListener('click',function(e){ e.preventDefault(); toc.hidden=true; go(i,true); });
+    list.appendChild(a);
+  });
+  $('#openToc').addEventListener('click',function(){ toc.hidden=false; });
+  $('#closeToc').addEventListener('click',function(){ toc.hidden=true; });
+  toc.addEventListener('click',function(e){ if(e.target===toc) toc.hidden=true; });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') toc.hidden=true; });
+
+  /* video */
+  var scenes=$$('.scene'), cap=$('#caption'), pBtn=$('#playBtn'), bar=$('#progBar'), vt=$('#vtime');
+  var cur=0, vPlaying=false, timer=null, token=0;
+  function show(i){ scenes.forEach(function(s,k){ s.classList.toggle('on',k===i); }); cap.textContent=scenes[i].getAttribute('data-cap'); vt.textContent=(i+1)+'/'+scenes.length; bar.style.width=((i+1)/scenes.length*100)+'%'; }
+  function run(){
+    if(!vPlaying) return; var my=++token; show(cur); var txt=scenes[cur].getAttribute('data-cap');
+    var adv=function(){ if(my!==token||!vPlaying) return; if(cur<scenes.length-1){ cur++; timer=setTimeout(run,600); } else { vPlaying=false; cur=0; pBtn.textContent='إعادة التشغيل'; } };
+    timer=setTimeout(adv,Math.max(5500,txt.length*75));
+  }
+  function stopVideo(){ if(!vPlaying) return; vPlaying=false; token++; clearTimeout(timer); pBtn.textContent='متابعة'; }
+  pBtn.addEventListener('click',function(){ if(vPlaying){ stopVideo(); return; } vPlaying=true; pBtn.textContent='إيقاف مؤقت'; run(); });
+  function stopAll(){ stopVideo(); }
+
+  /* quick checks */
+  $$('[data-quick]').forEach(function(q){
+    var fb=$('.fb',q);
+    $$('.opt',q).forEach(function(b){ b.addEventListener('click',function(){
+      $$('.opt',q).forEach(function(x){x.classList.remove('right','wrong')});
+      var ok=b.hasAttribute('data-ok'); b.classList.add(ok?'right':'wrong');
+      fb.textContent=ok?fb.getAttribute('data-yes'):fb.getAttribute('data-no'); fb.style.color=ok?'var(--good)':'var(--bad)';
+    }); });
+  });
+
+  /* builder */
+  var bq=$('#bq'), bout=$('#bout'), bgo=$('#bgo'), bexp=$('#bexp'), togs=$$('.tog');
+  var expl={exact:'العبارة بين علامتي التنصيص تُبحث بنصها',minus:'تُستبعد الصفحات التي فيها كلمة «إعلان»',site:'تقتصر النتائج على المواقع التعليمية السعودية',pdf:'تقتصر النتائج على ملفات PDF'};
+  function build(){
+    var w=bq.value.trim(), on={}, notes=[];
+    togs.forEach(function(t){ on[t.getAttribute('data-op')]=t.getAttribute('aria-pressed')==='true'; });
+    var q=w;
+    if(on.exact&&w){ var p=w.split(/\s+/); q='"'+p.slice(0,2).join(' ')+'"'+(p.length>2?' '+p.slice(2).join(' '):''); }
+    if(on.minus) q+=' -إعلان'; if(on.site) q+=' site:edu.sa'; if(on.pdf) q+=' filetype:pdf';
+    Object.keys(on).forEach(function(k){ if(on[k]) notes.push(expl[k]); });
+    bout.textContent=q||'اكتب الكلمات المفتاحية';
+    bgo.href='https://www.google.com/search?q='+encodeURIComponent(q);
+    bexp.textContent=notes.length?notes.join('، ')+'.':'اختر معاملًا أو أكثر لترى أثره في جملة البحث.';
+  }
+  togs.forEach(function(t){ t.addEventListener('click',function(){ t.setAttribute('aria-pressed',t.getAttribute('aria-pressed')==='true'?'false':'true'); build(); }); });
+  bq.addEventListener('input',build); build();
+
+  /* evaluation */
+  var crit=['الحداثة','الصلة','المرجعية','الدقة','الهدف'], truth={a:[false,true,false,false,false],b:[true,true,true,true,true]};
+  $$('.res').forEach(function(card){
+    var id=card.getAttribute('data-src'), box=$('.checks',card), v=$('.verdict',card);
+    crit.forEach(function(c,i){ var l=document.createElement('label'), cb=document.createElement('input'); cb.type='checkbox'; cb.id='ev-'+id+'-'+i; l.appendChild(cb); l.appendChild(document.createTextNode(' '+c)); box.appendChild(l); cb.addEventListener('change',upd); });
+    function upd(){
+      var cbs=$$('input',box), n=0, m=0; cbs.forEach(function(cb,i){ if(cb.checked) n++; if(cb.checked===truth[id][i]) m++; });
+      if(!n){ v.textContent='حدّد المعايير المتحققة'; v.style.background='var(--navy-soft)'; v.style.color='var(--ink)'; return; }
+      var ok=n===5, t=(ok?'5 من 5 · مصدر موثوق':n+' من 5 · مصدر غير موثوق');
+      if(m===5) t+=' · تقييمك صحيح'; else if(id==='a'&&n>1) t+=' · راجع: لا مؤلف ولا أدلة والهدف تسويقي'; else if(id==='b'&&n<5) t+=' · راجع: جهة رسمية ومحدَّثة ومدعومة بمراجع';
+      v.textContent=t; v.style.background=ok?'var(--good-soft)':'var(--bad-soft)'; v.style.color=ok?'var(--good)':'var(--bad)';
+    }
+  });
+
+  /* apa */
+  var aIds=['aAuth','aYear','aTitle','aSite','aUrl'], aOut=$('#aOut'), aIn=$('#aIn');
+  function esc(s){ return s.replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]}); }
+  function apa(){
+    var v={}; aIds.forEach(function(k){ v[k]=$('#'+k).value.trim(); });
+    var au=v.aAuth||'Author', yr=v.aYear||'n.d.';
+    var h=esc(au.replace(/\.$/,''))+'. ('+esc(yr)+'). <i>'+esc(v.aTitle||'Title of page')+'</i>. '; if(v.aSite&&v.aSite!==v.aAuth) h+=esc(v.aSite)+'. '; h+=esc(v.aUrl);
+    aOut.innerHTML=h; aIn.innerHTML='داخل النص: <span class="mono">('+esc(au)+', '+esc(yr)+')</span>';
+  }
+  aIds.forEach(function(k){ $('#'+k).addEventListener('input',apa); }); apa();
+  function sel(el){ if(!el) return; try{ var r=document.createRange(); r.selectNodeContents(el); var s=window.getSelection(); s.removeAllRanges(); s.addRange(r); }catch(e){} }
+  function copy(text,btn,msg,el){
+    var o=btn.textContent, done=function(){ btn.textContent=msg; setTimeout(function(){btn.textContent=o},1600); }, fail=function(){ sel(el); btn.textContent='حُدّد النص، انسخه يدويًا'; setTimeout(function(){btn.textContent=o},2500); };
+    try{ navigator.clipboard.writeText(text).then(done,fail); }catch(e){ fail(); }
+  }
+  $('#aCopy').addEventListener('click',function(){ copy(aOut.textContent,this,'تم النسخ',aOut); });
+
+  /* activity */
+  var tIds=['t1','t2','t3','t4','t5'], saved=$('#savedNote'), KEY='baheth-task-v2', st=null;
+  try{ var d=JSON.parse(localStorage.getItem(KEY)||'{}'); tIds.forEach(function(k){ if(d[k]) $('#'+k).value=d[k]; }); }catch(e){}
+  tIds.forEach(function(k){ $('#'+k).addEventListener('input',function(){ clearTimeout(st); st=setTimeout(function(){ var d={}; tIds.forEach(function(x){ d[x]=$('#'+x).value; }); try{ localStorage.setItem(KEY,JSON.stringify(d)); saved.textContent='حُفظت الإجابات على هذا الجهاز'; }catch(e){} },500); }); });
+  $('#copyTask').addEventListener('click',function(){
+    var labels=$$('#taskForm label'), out='مهمة الباحث\n\n';
+    tIds.forEach(function(k,i){ out+=labels[i].firstChild.textContent.trim()+'\n'+($('#'+k).value||'—')+'\n\n'; });
+    copy(out,this,'تم النسخ، الصقها في رسالتك للمعلم',null);
+  });
+  $('#clearTask').addEventListener('click',function(){ tIds.forEach(function(k){ $('#'+k).value=''; }); try{ localStorage.removeItem(KEY); }catch(e){} saved.textContent='مُسحت الإجابات'; });
+
+  /* quiz */
+  var qf=$('#quizForm');
+  qf.addEventListener('submit',function(e){
+    e.preventDefault(); var s=0,t=0;
+    $$('.qq[data-ans]',qf).forEach(function(q){ t++; var a=q.getAttribute('data-ans');
+      $$('label',q).forEach(function(l){ l.classList.remove('right','wrong'); var i=$('input',l); if(i.value===a) l.classList.add('right'); else if(i.checked) l.classList.add('wrong'); });
+      var c=$('input:checked',q); if(c&&c.value===a) s++; });
+    $('#q6model').hidden=false; $('#scoreNum').textContent=s+' / '+t;
+    $('#scoreMsg').textContent=s===t?'أداء متميز. قارن إجابتك المقالية بالإجابة النموذجية.':(s>=3?'أداء جيد. راجع الأسئلة المظللة.':'يُنصح بمراجعة وحدات الدرس ثم إعادة المحاولة.');
+  });
+  $('#quizReset').addEventListener('click',function(){ qf.reset(); $$('.qq label',qf).forEach(function(l){l.classList.remove('right','wrong')}); $('#q6model').hidden=true; $('#scoreNum').textContent=''; $('#scoreMsg').textContent=''; });
+
+  /* annotated figures */
+  var HOT={
+    serp:[
+      ['مربع البحث','اكتب فيه الكلمات المفتاحية لا السؤال كاملًا. كل كلمة إضافية غير ضرورية قد تشتت النتائج.'],
+      ['تبويبات البحث وقائمة الأدوات','تتيح حصر النتائج في الصور أو الأخبار، وتسمح قائمة «الأدوات» بتحديد المدة الزمنية للنتائج.'],
+      ['نتيجة ممولة (إعلان)','تظهر أعلى الصفحة لأن صاحبها دفع مقابل ظهورها، لا لأنها الأدق. لاحظ كلمة «ممول» والنطاق التجاري .shop.'],
+      ['الرابط والنطاق','يدل النطاق gov.sa على جهة حكومية سعودية، وهو مؤشر أولي قوي على معيار المرجعية.'],
+      ['العنوان والمقتطف','يلخصان محتوى الصفحة. لاحظ أن المقتطف هنا يتحدث بلغة علمية هادئة دون مبالغة أو تسويق.'],
+      ['نتيجة من مدونة شخصية','عنوان مثير، وتجربة شخصية لا دليل علمي، ونطاق غير معروف. هذه علامات تحذيرية تستدعي الحذر.']
+    ],
+    scholar:[
+      ['عنوان الدراسة','يصف موضوع البحث بدقة. النقر عليه يفتح صفحة الدراسة لدى الناشر.'],
+      ['المؤلفون والدورية وسنة النشر','يكشف هذا السطر عن معياري المرجعية والحداثة، وتوفر بيانات التوثيق: المؤلفون، والدورية (Sleep Health)، والسنة (2015)، والناشر.'],
+      ['المقتطف','جزء من ملخص الدراسة يساعدك على الحكم على صلتها بسؤالك قبل فتحها.'],
+      ['أدوات النتيجة','«Cite» يعرض التوثيق جاهزًا بعدة أنظمة منها APA (راجعه دائمًا قبل استخدامه)، و«Cited by» يبيّن عدد الدراسات التي استشهدت بها، و«Related articles» يقترح دراسات مشابهة.'],
+      ['رابط النص الكامل','يظهر عندما يتوفر ملف الدراسة كاملًا، كملف PDF، من الناشر أو من مستودع مفتوح.']
+    ],
+    url:[
+      ['البروتوكول https','يعني أن الاتصال بالموقع مشفّر وآمن، لكنه لا يعني أن محتوى الموقع موثوق علميًا.'],
+      ['اسم الجهة','يدل على صاحب الموقع؛ وهنا moh اختصار لوزارة الصحة (Ministry of Health).'],
+      ['النطاق gov.sa','نطاق مخصص للجهات الحكومية في المملكة العربية السعودية، ولا يُمنح إلا لها.'],
+      ['المسار','يحدد الصفحة داخل الموقع، وقد يدل على القسم الذي تنتمي إليه، مثل قسم التوعية الصحية.']
+    ]
+  };
+  $$('figure[data-hot]').forEach(function(fig){
+    var data=HOT[fig.getAttribute('data-hot')], info=$('.hotinfo',fig), out=$('.hotout',fig), hots=$$('.hot',fig), btns=[];
+    function pick(k){
+      hots.forEach(function(h){ h.classList.toggle('sel',+h.getAttribute('data-k')===k); });
+      btns.forEach(function(b,i){ b.classList.toggle('sel',i===k); });
+      out.innerHTML='<b>'+(k+1)+'. '+data[k][0]+':</b> '+data[k][1];
+    }
+    data.forEach(function(d,i){ var b=document.createElement('button'); b.type='button'; b.textContent=(i+1)+'. '+d[0]; b.addEventListener('click',function(){pick(i)}); info.appendChild(b); btns.push(b); });
+    hots.forEach(function(h){ var k=+h.getAttribute('data-k'); h.addEventListener('click',function(){pick(k)}); h.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pick(k);} }); });
+  });
+
+  /* sorting activity */
+  var SORT=[
+    ['www.moh.gov.sa','صفحة توعوية من وزارة الصحة عن النوم الصحي للمراهقين، محدّثة ومدعومة بمراجع.',0,'جهة حكومية رسمية متخصصة، والمعلومة حديثة ومدعومة بالأدلة.'],
+    ['ar.wikipedia.org','مقالة موسوعية عن «الحرمان من النوم» كتبها متطوعون، وفي آخرها قائمة مراجع.',1,'نقطة بداية جيدة، لكن يمكن لأي شخص تعديلها؛ ارجع إلى المراجع المذكورة فيها واعتمد عليها.'],
+    ['www.super-brain-drink.shop','مقال يزعم أن مشروبًا معينًا «يغني عن النوم» مع رابط للشراء.',2,'الهدف تسويقي، ولا يوجد كاتب ولا أدلة، والادعاء مبالغ فيه.'],
+    ['scholar.google.com','دراسة منشورة في دورية Sleep Health المحكّمة عن ساعات النوم الموصى بها.',0,'دراسة علمية محكّمة معروفة المؤلفين وجهة النشر.'],
+    ['منشور متداول','منشور منتشر على مواقع التواصل: «النوم 4 ساعات يكفي للعباقرة!» دون أي مصدر.',2,'لا يُعرف كاتبه ولا مصدره، والادعاء يخالف التوصيات العلمية.'],
+    ['صحيفة إلكترونية','خبر في صحيفة معروفة يذكر «دراسة حديثة» عن النوم دون رابط للدراسة أو اسم الباحثين.',1,'الصحيفة معروفة، لكن عليك تتبّع الدراسة الأصلية للتحقق منها (خطوة تتبّع الأصل في SIFT).']
+  ];
+  var LBL=['موثوق','يحتاج تحققًا','غير موثوق'], sortg=$('#sortg'), tally=$('#sortTally'), done={};
+  function updTally(){ var n=0,c=0; Object.keys(done).forEach(function(k){ n++; if(done[k]) c++; }); tally.textContent=n?('النتيجة: '+c+' صحيحة من '+n+(n===SORT.length?' (اكتمل النشاط)':'')):''; }
+  SORT.forEach(function(it,i){
+    var d=document.createElement('div'); d.className='sitem';
+    d.innerHTML='<span class="u">'+it[0]+'</span><p class="d">'+it[1]+'</p><div class="sbtns"></div><p class="why" hidden></p>';
+    var bx=$('.sbtns',d), why=$('.why',d);
+    LBL.forEach(function(l,k){ var b=document.createElement('button'); b.type='button'; b.textContent=l; bx.appendChild(b);
+      b.addEventListener('click',function(){
+        $$('button',bx).forEach(function(x){x.classList.remove('right','wrong')});
+        var ok=k===it[2]; b.classList.add(ok?'right':'wrong'); if(!ok) $$('button',bx)[it[2]].classList.add('right');
+        why.hidden=false; why.textContent=(ok?'صحيح. ':'التصنيف الأدق: '+LBL[it[2]]+'. ')+it[3];
+        if(!(i in done)) done[i]=ok; updTally();
+      });
+    });
+    sortg.appendChild(d);
+  });
+
+  /* video embeds (only where the host allows YouTube frames) */
+  if(window.BAHETH_EMBED){
+    $$('.vcard[data-yt],.vcard[data-ytlist]').forEach(function(c){
+      var th=$('.vthumb',c), id=c.getAttribute('data-yt'), list=c.getAttribute('data-ytlist');
+      var src=id?('https://www.youtube-nocookie.com/embed/'+id):('https://www.youtube-nocookie.com/embed/videoseries?list='+list);
+      var div=document.createElement('div'); div.className='vthumb';
+      div.innerHTML='<iframe src="'+src+'" title="فيديو تعليمي" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe>';
+      th.parentNode.replaceChild(div,th);
+    });
+  }
+
+  /* start */
+  var m=/^#s(\d+)$/.exec(location.hash||''), start=m?Math.min(slides.length,Math.max(1,+m[1]))-1:0;
+  slides[0].classList.add('on'); idx=0; go(start);
+})();
+</script>
+
+</body>
+</html>
